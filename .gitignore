@@ -1,0 +1,41 @@
+## =======================================================
+## Backend (.NET / C# / Visual Studio / Rider / VS Code)
+## =======================================================
+
+# Build results & Intermediate files
+[Bb]in/
+[Oo]bj/
+out/
+[Tt]est[Rr]esult*/
+
+# Visual Studio temporary files, caches, and user-specific files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+
+# JetBrains Rider & VS Code
+.idea/
+*.DotSettings.user
+.vscode/
+
+# Secrets & Environment Configurations
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+secrets.json
+.env
+
+# Package & Tool artifacts
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
