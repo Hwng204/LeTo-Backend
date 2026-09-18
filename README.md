@@ -56,6 +56,7 @@ Danh sách migration phải có:
 ~~~text
 InitialCreate
 AddDatabaseIntegrityObjects
+AddMatrixFeatureConstraints
 ~~~
 
 
@@ -74,3 +75,8 @@ http://localhost:5035/swagger
 
 Sau migration thành công, database có 49 bảng, 2 generated column, 1 unique index,
 11 trigger và không có view.
+
+
+## 6. Module Ma trận đề thi
+
+Các API ma trận và cách chạy thử (người dùng giả khi chưa có đăng nhập): xem [MATRIX.md](MATRIX.md).
