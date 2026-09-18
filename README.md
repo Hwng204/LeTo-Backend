@@ -1,76 +1,100 @@
-# Backend - Chạy sau khi pull
+# TeLo Backend - chạy với MySQL local
 
-Chạy các lệnh tại thư mục chứa TeLoSchoolManagement.sln.
+Backend dùng .NET 8, EF Core 8 và MySQL 8. Docker không bắt buộc. Toàn đội phải
+dùng EF Migration làm nguồn chuẩn của schema; không tạo/sửa bảng thủ công trong
+MySQL Workbench.
 
-## 1. Vào đúng thư mục repo
+## 1. Yêu cầu
 
-~~~powershell
-cd "location..."
-~~~
+- .NET SDK 8 trở lên.
+- MySQL Server 8.0.16 trở lên.
+- MySQL Workbench chỉ dùng để tạo database/user, xem và truy vấn dữ liệu.
 
+Kiểm tra MySQL trên Windows:
 
-## 2. Chuẩn bị MySQL 8.0
+```powershell
+Get-Service MySQL80
+```
 
-Cần cài .NET SDK 8.x và MySQL Server 8.0.16 trở lên. Docker không bắt buộc.
+Nếu service chưa chạy, mở PowerShell bằng quyền Administrator:
 
-~~~powershell
-dotnet --version
-mysql --version
-Get-Service *mysql*
+```powershell
 Start-Service MySQL80
-~~~
+```
 
-Tạo database trống:
+## 2. Tạo database phát triển
 
-~~~powershell
-mysql -u root -p -e "CREATE DATABASE sep CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
-~~~
+Mở MySQL Workbench bằng tài khoản quản trị và chạy một lần:
 
+```sql
+CREATE DATABASE IF NOT EXISTS telo_dev
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_0900_ai_ci;
 
-Đặt connection string trong terminal hiện tại:
+CREATE USER IF NOT EXISTS 'telo_app'@'localhost'
+  IDENTIFIED BY 'THAY_BANG_MAT_KHAU_LOCAL_CUA_BAN';
 
-~~~powershell
-$env:ConnectionStrings__DefaultConnection = "Server=127.0.0.1;Port=3306;Database=sep;User=root;Password=MAT_KHAU_LOCAL;"
-~~~
+GRANT ALL PRIVILEGES ON telo_dev.* TO 'telo_app'@'localhost';
+FLUSH PRIVILEGES;
+```
 
-Không ghi mật khẩu vào source hoặc Git.
+`THAY_BANG_MAT_KHAU_LOCAL_CUA_BAN` chỉ tồn tại trên máy cá nhân. Không đưa mật
+khẩu thật vào source, ảnh chụp, chat, issue hoặc Git.
 
-## 3. Restore và build
+## 3. Lưu connection string an toàn
 
-~~~powershell
-dotnet tool restore
+Chạy tại thư mục `LeTo-Backend` và thay mật khẩu bằng giá trị vừa tạo:
+
+```powershell
+dotnet user-secrets set `
+  "ConnectionStrings:DefaultConnection" `
+  "Server=127.0.0.1;Port=3306;Database=telo_dev;User=telo_app;Password=MAT_KHAU_LOCAL;Allow User Variables=true;" `
+  --project WebAPI
+```
+
+Kiểm tra secret đã có tên đúng mà không cần mở file cấu hình:
+
+```powershell
+dotnet user-secrets list --project WebAPI
+```
+
+## 4. Tạo schema thật bằng EF Migration
+
+```powershell
 dotnet restore TeLoSchoolManagement.sln
-dotnet build TeLoSchoolManagement.sln
-~~~
+dotnet ef migrations list --project Infrastructure --startup-project WebAPI
+dotnet ef database update --project Infrastructure --startup-project WebAPI
+```
 
+Không chạy lại file `CREATE TABLE` thủ công. EF lưu migration đã áp dụng trong
+bảng `__EFMigrationsHistory` và chỉ chạy phần còn thiếu.
 
-## 4. Tạo database bằng migration
+## 5. Build, test và chạy API
 
-~~~powershell
-dotnet tool run dotnet-ef migrations list --project Infrastructure --startup-project WebAPI
-dotnet tool run dotnet-ef database update --project Infrastructure --startup-project WebAPI
-~~~
+Trong một số môi trường Windows, shared compiler có thể bị chặn. Lệnh dưới đây
+ổn định cho cả CI và máy phát triển:
 
-Danh sách migration phải có:
-
-~~~text
-InitialCreate
-AddDatabaseIntegrityObjects
-~~~
-
-
-## 5. Chạy API
-
-~~~powershell
+```powershell
+dotnet build TeLoSchoolManagement.sln --disable-build-servers -m:1 -p:UseSharedCompilation=false
+dotnet test TeLoSchoolManagement.sln --disable-build-servers -m:1 -p:UseSharedCompilation=false
 dotnet run --project WebAPI --launch-profile https
-~~~
+```
 
-Mở Swagger tại:
+Swagger:
 
-~~~text
-https://localhost:7033/swagger
-http://localhost:5035/swagger
-~~~
+- `https://localhost:7033/swagger`
+- `http://localhost:5035/swagger`
 
-Sau migration thành công, database có 49 bảng, 2 generated column, 1 unique index,
-11 trigger và không có view.
+## 6. Quy tắc đồng bộ database của đội
+
+1. Thay đổi entity và EF configuration.
+2. Tạo migration có tên rõ nghĩa.
+3. Review cả migration `Up` và `Down`.
+4. Commit migration cùng feature.
+5. Thành viên khác pull code rồi chạy `dotnet ef database update`.
+6. Không chia sẻ database local; chỉ chia sẻ migration và seed data không nhạy cảm.
+
+Database hiện có các migration nền:
+
+- `InitialCreate`
+- `AddDatabaseIntegrityObjects`
