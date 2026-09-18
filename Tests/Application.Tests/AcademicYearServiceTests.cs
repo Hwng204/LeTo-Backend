@@ -9,7 +9,7 @@ public sealed class AcademicYearServiceTests
     [Fact]
     public async Task CreateAsync_CreatesDraftYearWithExactlyTwoPlannedTerms()
     {
-        var repository = new FakeAcademicYearRepository { ProvinceExists = true };
+        var repository = new FakeAcademicYearRepository();
         var service = new AcademicYearService(repository);
         var request = ValidRequest();
 
@@ -43,7 +43,7 @@ public sealed class AcademicYearServiceTests
     [Fact]
     public async Task CreateAsync_ReturnsValidationDetailsBeforeUsingTheRepository()
     {
-        var repository = new FakeAcademicYearRepository { ProvinceExists = true };
+        var repository = new FakeAcademicYearRepository();
         var service = new AcademicYearService(repository);
         var request = ValidRequest() with { Name = "2026/2027" };
 
@@ -52,13 +52,16 @@ public sealed class AcademicYearServiceTests
         Assert.False(result.IsSuccess);
         Assert.Equal("VALIDATION_ERROR", result.Error?.Code);
         Assert.Contains("name", result.Error?.Details?.Keys ?? []);
-        Assert.Equal(0, repository.ProvinceLookupCount);
+        Assert.Equal(0, repository.CreateCallCount);
     }
 
     [Fact]
     public async Task CreateAsync_RejectsAnUnknownProvince()
     {
-        var repository = new FakeAcademicYearRepository { ProvinceExists = false };
+        var repository = new FakeAcademicYearRepository
+        {
+            CreateOutcome = AcademicYearCreateOutcome.ProvinceNotFound
+        };
         var service = new AcademicYearService(repository);
 
         var result = await service.CreateAsync(ValidRequest(), CancellationToken.None);
@@ -73,8 +76,7 @@ public sealed class AcademicYearServiceTests
     {
         var repository = new FakeAcademicYearRepository
         {
-            ProvinceExists = true,
-            HasConflict = true
+            CreateOutcome = AcademicYearCreateOutcome.Conflict
         };
         var service = new AcademicYearService(repository);
 
@@ -86,12 +88,11 @@ public sealed class AcademicYearServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_ReturnsConflictWhenAConcurrentInsertWins()
+    public async Task CreateAsync_ReturnsConflictWhenTheAtomicCreateLosesAConcurrentRace()
     {
         var repository = new FakeAcademicYearRepository
         {
-            ProvinceExists = true,
-            AddSucceeds = false
+            CreateOutcome = AcademicYearCreateOutcome.Conflict
         };
         var service = new AcademicYearService(repository);
 
@@ -106,30 +107,23 @@ public sealed class AcademicYearServiceTests
 
     private sealed class FakeAcademicYearRepository : IAcademicYearRepository
     {
-        public bool ProvinceExists { get; init; }
-        public bool HasConflict { get; init; }
-        public bool AddSucceeds { get; init; } = true;
-        public int ProvinceLookupCount { get; private set; }
+        public AcademicYearCreateOutcome CreateOutcome { get; init; } =
+            AcademicYearCreateOutcome.Created;
+        public int CreateCallCount { get; private set; }
         public List<AcademicYear> AddedYears { get; } = [];
 
-        public Task<bool> ProvinceExistsAsync(string provinceCode, CancellationToken cancellationToken)
+        public Task<AcademicYearCreateOutcome> TryAddAsync(
+            AcademicYear academicYear,
+            CancellationToken cancellationToken)
         {
-            ProvinceLookupCount++;
-            return Task.FromResult(ProvinceExists);
-        }
+            CreateCallCount++;
+            if (CreateOutcome == AcademicYearCreateOutcome.Created)
+            {
+                AddedYears.Add(academicYear);
+                academicYear.Id = 10;
+            }
 
-        public Task<bool> HasConflictAsync(
-            string provinceCode,
-            string name,
-            DateOnly startDate,
-            DateOnly endDate,
-            CancellationToken cancellationToken) => Task.FromResult(HasConflict);
-
-        public Task<bool> TryAddAsync(AcademicYear academicYear, CancellationToken cancellationToken)
-        {
-            AddedYears.Add(academicYear);
-            academicYear.Id = 10;
-            return Task.FromResult(AddSucceeds);
+            return Task.FromResult(CreateOutcome);
         }
 
         public Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(

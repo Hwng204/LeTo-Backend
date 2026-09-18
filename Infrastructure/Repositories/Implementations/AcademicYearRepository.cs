@@ -8,40 +8,49 @@ namespace Infrastructure.Repositories.Implementations;
 
 public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcademicYearRepository
 {
-    public Task<bool> ProvinceExistsAsync(
-        string provinceCode,
-        CancellationToken cancellationToken) =>
-        context.Provinces.AsNoTracking().AnyAsync(
-            province => province.Code == provinceCode && province.IsActive,
-            cancellationToken);
-
-    public Task<bool> HasConflictAsync(
-        string provinceCode,
-        string name,
-        DateOnly startDate,
-        DateOnly endDate,
-        CancellationToken cancellationToken) =>
-        context.AcademicYears.AsNoTracking().AnyAsync(
-            year => year.ProvinceCode == provinceCode &&
-                    (year.Name == name ||
-                     (year.StartDate <= endDate && startDate <= year.EndDate)),
-            cancellationToken);
-
-    public async Task<bool> TryAddAsync(
+    public async Task<AcademicYearCreateOutcome> TryAddAsync(
         AcademicYear academicYear,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var lockedProvinces = await context.Provinces
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM provinces
+                WHERE code = {academicYear.ProvinceCode} AND is_active = TRUE
+                FOR UPDATE
+                """)
+            .ToListAsync(cancellationToken);
+        var province = lockedProvinces.SingleOrDefault();
+
+        if (province is null)
+        {
+            return AcademicYearCreateOutcome.ProvinceNotFound;
+        }
+
+        var hasConflict = await context.AcademicYears.AsNoTracking().AnyAsync(
+            year => year.ProvinceCode == academicYear.ProvinceCode &&
+                    (year.Name == academicYear.Name ||
+                     (year.StartDate <= academicYear.EndDate &&
+                      academicYear.StartDate <= year.EndDate)),
+            cancellationToken);
+        if (hasConflict)
+        {
+            return AcademicYearCreateOutcome.Conflict;
+        }
+
         context.AcademicYears.Add(academicYear);
 
         try
         {
             await context.SaveChangesAsync(cancellationToken);
-            return true;
+            await transaction.CommitAsync(cancellationToken);
+            return AcademicYearCreateOutcome.Created;
         }
         catch (DbUpdateException exception)
             when (exception.InnerException is MySqlException { Number: 1062 })
         {
-            return false;
+            return AcademicYearCreateOutcome.Conflict;
         }
     }
 

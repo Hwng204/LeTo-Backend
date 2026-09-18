@@ -2,18 +2,18 @@ using Domain.Entities.Academic;
 
 namespace Application.AcademicYears;
 
+public enum AcademicYearCreateOutcome
+{
+    Created,
+    ProvinceNotFound,
+    Conflict
+}
+
 public interface IAcademicYearRepository
 {
-    Task<bool> ProvinceExistsAsync(string provinceCode, CancellationToken cancellationToken);
-
-    Task<bool> HasConflictAsync(
-        string provinceCode,
-        string name,
-        DateOnly startDate,
-        DateOnly endDate,
+    Task<AcademicYearCreateOutcome> TryAddAsync(
+        AcademicYear academicYear,
         CancellationToken cancellationToken);
-
-    Task<bool> TryAddAsync(AcademicYear academicYear, CancellationToken cancellationToken);
 
     Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
         string provinceCode,

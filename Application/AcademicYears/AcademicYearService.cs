@@ -20,25 +20,6 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         var provinceCode = request.ProvinceCode.Trim();
         var name = request.Name.Trim();
 
-        if (!await repository.ProvinceExistsAsync(provinceCode, cancellationToken))
-        {
-            return ServiceResult<AcademicYearListItem>.Failure(
-                "PROVINCE_NOT_FOUND",
-                "Tỉnh đã chọn không tồn tại hoặc không còn hoạt động.");
-        }
-
-        if (await repository.HasConflictAsync(
-                provinceCode,
-                name,
-                request.StartDate,
-                request.EndDate,
-                cancellationToken))
-        {
-            return ServiceResult<AcademicYearListItem>.Failure(
-                "ACADEMIC_YEAR_CONFLICT",
-                "Năm học bị trùng tên hoặc chồng lấn thời gian trong cùng tỉnh.");
-        }
-
         var academicYear = new AcademicYear
         {
             ProvinceCode = provinceCode,
@@ -53,11 +34,19 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
             ]
         };
 
-        if (!await repository.TryAddAsync(academicYear, cancellationToken))
+        var createOutcome = await repository.TryAddAsync(academicYear, cancellationToken);
+        if (createOutcome == AcademicYearCreateOutcome.ProvinceNotFound)
+        {
+            return ServiceResult<AcademicYearListItem>.Failure(
+                "PROVINCE_NOT_FOUND",
+                "Tỉnh đã chọn không tồn tại hoặc không còn hoạt động.");
+        }
+
+        if (createOutcome == AcademicYearCreateOutcome.Conflict)
         {
             return ServiceResult<AcademicYearListItem>.Failure(
                 "ACADEMIC_YEAR_CONFLICT",
-                "Năm học vừa được tạo bởi một yêu cầu khác. Vui lòng tải lại dữ liệu.");
+                "Năm học bị trùng tên hoặc chồng lấn thời gian trong cùng tỉnh.");
         }
 
         return ServiceResult<AcademicYearListItem>.Success(Map(academicYear));
