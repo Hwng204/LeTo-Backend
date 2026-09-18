@@ -1,6 +1,6 @@
-using Application.Services.Interface;
+using Application.Services.Interfaces;
 
-namespace Application.Services.Implement;
+namespace Application.Services.Implementations;
 
 public class StudentService : IStudentService
 {

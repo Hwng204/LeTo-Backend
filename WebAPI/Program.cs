@@ -1,5 +1,5 @@
-using Application.Services.Implement;
-using Application.Services.Interface;
+using Application.Services.Implementations;
+using Application.Services.Interfaces;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

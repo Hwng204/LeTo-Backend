@@ -1,6 +1,6 @@
 using Application.DTOs;
 using Application.Interfaces;
-using Application.Services.Implement;
+using Application.Services.Implementations;
 using Xunit;
 
 namespace Application.Tests;

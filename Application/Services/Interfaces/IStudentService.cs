@@ -1,4 +1,4 @@
-namespace Application.Services.Interface;
+namespace Application.Services.Interfaces;
 
 public interface IStudentService
 {
