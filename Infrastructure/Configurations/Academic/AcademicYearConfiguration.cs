@@ -15,6 +15,7 @@ public sealed class AcademicYearConfiguration : IEntityTypeConfiguration<Academi
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id").HasColumnType("bigint unsigned").ValueGeneratedOnAdd();
+        builder.Property(x => x.Code).HasColumnName("code").HasMaxLength(64);
         builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(50).IsRequired();
         builder.Property(x => x.StartDate).HasColumnName("start_date").HasColumnType("date").IsRequired();
         builder.Property(x => x.EndDate).HasColumnName("end_date").HasColumnType("date").IsRequired();
@@ -29,6 +30,8 @@ public sealed class AcademicYearConfiguration : IEntityTypeConfiguration<Academi
         builder.Property(x => x.Version).HasColumnName("version").HasDefaultValue(1u).IsConcurrencyToken();
         builder.HasIndex(x => new { x.ProvinceCode, x.Name })
             .IsUnique().HasDatabaseName("uq_academic_years_province_name");
+        builder.HasIndex(x => x.Code)
+            .IsUnique().HasDatabaseName("uq_academic_years_code");
         builder.HasIndex(x => x.ActiveProvinceCode)
             .IsUnique().HasDatabaseName("uq_academic_years_active_province");
         builder.HasOne(x => x.Province).WithMany(x => x.AcademicYears)

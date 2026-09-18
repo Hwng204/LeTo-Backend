@@ -18,8 +18,11 @@ public sealed class AcademicYearServiceTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal("DRAFT", result.Value.Status);
+        Assert.Equal("01-2026-2027", result.Value.Code);
         var year = Assert.Single(repository.AddedYears);
         Assert.Equal("01", year.ProvinceCode);
+        Assert.Equal("01-2026-2027", year.Code);
+        Assert.Throws<InvalidOperationException>(() => year.AssignCode("01-2027-2028"));
         Assert.Collection(
             year.Semesters.OrderBy(term => term.Order),
             first =>

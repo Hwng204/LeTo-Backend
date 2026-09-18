@@ -2,6 +2,7 @@ namespace Application.AcademicYears;
 
 public sealed record AcademicYearListItem(
     ulong Id,
+    string Code,
     string ProvinceCode,
     string Name,
     DateOnly StartDate,

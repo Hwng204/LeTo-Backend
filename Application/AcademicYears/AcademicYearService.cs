@@ -33,6 +33,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 new Semester { Order = 2, Name = "Học kỳ 2", Status = "PLANNED" }
             ]
         };
+        academicYear.AssignCode($"{provinceCode}-{name}");
 
         var createOutcome = await repository.TryAddAsync(academicYear, cancellationToken);
         if (createOutcome == AcademicYearCreateOutcome.ProvinceNotFound)
@@ -70,6 +71,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
     private static AcademicYearListItem Map(AcademicYear year) =>
         new(
             year.Id,
+            year.Code ?? string.Empty,
             year.ProvinceCode ?? string.Empty,
             year.Name,
             year.StartDate,
