@@ -13,7 +13,7 @@ public sealed class ExamMatrixConfiguration : IEntityTypeConfiguration<ExamMatri
         builder.Property(x => x.Id).HasColumnName("id").HasColumnType("bigint unsigned").ValueGeneratedOnAdd();
         builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(255).IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").HasMaxLength(32).IsRequired();
-        builder.Property(x => x.TaskId).HasColumnName("task_id").HasColumnType("bigint unsigned").IsRequired();
+        builder.Property(x => x.TaskId).HasColumnName("task_id").HasColumnType("bigint unsigned");
         builder.Property(x => x.SemesterId).HasColumnName("semester_id").HasColumnType("bigint unsigned");
         builder.Property(x => x.AcademicContextId).HasColumnName("academic_context_id").HasColumnType("bigint unsigned").IsRequired();
         builder.HasIndex(x => x.TaskId).IsUnique().HasDatabaseName("uq_exam_matrices_task");

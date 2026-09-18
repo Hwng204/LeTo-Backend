@@ -14,6 +14,8 @@ public sealed class WorkTask
     public DateTime? UpdatedAt { get; set; }
     public ulong? UpdatedByUserId { get; set; }
     public string TaskType { get; set; } = string.Empty;
+    public ulong? AcademicContextId { get; set; }
+    public ulong? SemesterId { get; set; }
 
     public User CreatedByUser { get; set; } = null!;
     public User AssignedToUser { get; set; } = null!;

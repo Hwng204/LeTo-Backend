@@ -1,3 +1,4 @@
+using Domain.Entities.Academic;
 using Domain.Entities.QuestionBank;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -21,10 +22,14 @@ public sealed class WorkTaskConfiguration : IEntityTypeConfiguration<WorkTask>
         builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime(6)");
         builder.Property(x => x.UpdatedByUserId).HasColumnName("updated_by_user_id").HasColumnType("bigint unsigned");
         builder.Property(x => x.TaskType).HasColumnName("task_type").HasMaxLength(50).IsRequired();
+        builder.Property(x => x.AcademicContextId).HasColumnName("academic_context_id").HasColumnType("bigint unsigned");
+        builder.Property(x => x.SemesterId).HasColumnName("semester_id").HasColumnType("bigint unsigned");
         builder.HasIndex(x => new { x.AssignedToUserId, x.Status, x.DueAt })
             .HasDatabaseName("idx_tasks_assignee_status_due");
         builder.HasIndex(x => x.CreatedByUserId).HasDatabaseName("idx_tasks_creator");
         builder.HasIndex(x => x.UpdatedByUserId).HasDatabaseName("idx_tasks_updater");
+        builder.HasIndex(x => x.AcademicContextId).HasDatabaseName("idx_tasks_context");
+        builder.HasIndex(x => x.SemesterId).HasDatabaseName("idx_tasks_semester");
         builder.HasOne(x => x.CreatedByUser).WithMany()
             .HasForeignKey(x => x.CreatedByUserId).HasConstraintName("fk_tasks_creator")
             .OnDelete(DeleteBehavior.Restrict);
@@ -33,6 +38,12 @@ public sealed class WorkTaskConfiguration : IEntityTypeConfiguration<WorkTask>
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.UpdatedByUser).WithMany()
             .HasForeignKey(x => x.UpdatedByUserId).HasConstraintName("fk_tasks_updater")
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<AcademicContext>().WithMany()
+            .HasForeignKey(x => x.AcademicContextId).HasConstraintName("fk_tasks_context")
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Semester>().WithMany()
+            .HasForeignKey(x => x.SemesterId).HasConstraintName("fk_tasks_semester")
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
