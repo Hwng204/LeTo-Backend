@@ -1,5 +1,8 @@
+using Application.AcademicYears;
+using Application.Provinces;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using WebAPI.ExceptionHandling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +10,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
+builder.Services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
+builder.Services.AddScoped<IProvinceSyncService, ProvinceSyncService>();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 builder.Services.AddAuthorization(options =>
 {
@@ -25,6 +33,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

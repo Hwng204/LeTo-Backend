@@ -60,6 +60,21 @@ public sealed class AcademicYearsControllerTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task StudentsEndpoint_ResolvesWithoutAnUnusedStudentServiceRegistration()
+    {
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting(
+                "ConnectionStrings:DefaultConnection",
+                "Server=127.0.0.1;Database=unused;User=unused;Password=unused;"));
+        using var client = factory.CreateClient();
+        client.BaseAddress = new Uri("https://localhost");
+
+        var response = await client.GetAsync("/api/students");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private sealed class FakeAcademicYearService : IAcademicYearService
     {
         public int ListCallCount { get; private set; }
