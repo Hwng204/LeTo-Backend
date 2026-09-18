@@ -55,21 +55,29 @@ public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcad
     }
 
     public async Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-        string provinceCode,
-        int page,
-        int pageSize,
+        AcademicYearListQuery listQuery,
         CancellationToken cancellationToken)
     {
         var query = context.AcademicYears
             .AsNoTracking()
-            .Where(year => year.ProvinceCode == provinceCode);
+            .Where(year => year.ProvinceCode == listQuery.ProvinceCode);
+
+        if (listQuery.Status is not null)
+        {
+            query = query.Where(year => year.Status == listQuery.Status);
+        }
+
+        if (listQuery.Search is not null)
+        {
+            query = query.Where(year => year.Name.Contains(listQuery.Search));
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(year => year.StartDate)
             .ThenByDescending(year => year.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((listQuery.Page - 1) * listQuery.PageSize)
+            .Take(listQuery.PageSize)
             .ToArrayAsync(cancellationToken);
 
         return (items, totalCount);

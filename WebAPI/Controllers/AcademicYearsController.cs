@@ -16,11 +16,13 @@ public sealed class AcademicYearsController(IAcademicYearService service) : Cont
     [ProducesResponseType(typeof(ApiResponse<AcademicYearPage>), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> List(
         [FromQuery] string provinceCode,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var errors = ValidateListRequest(provinceCode, page, pageSize);
+        var errors = ValidateListRequest(provinceCode, status, search, page, pageSize);
         if (errors.Count > 0)
         {
             return UnprocessableEntity(ApiResponse<AcademicYearPage>.Fail(
@@ -29,7 +31,9 @@ public sealed class AcademicYearsController(IAcademicYearService service) : Cont
                 errors));
         }
 
-        var result = await service.ListAsync(provinceCode, page, pageSize, cancellationToken);
+        var result = await service.ListAsync(
+            new AcademicYearListQuery(provinceCode, status, search, page, pageSize),
+            cancellationToken);
         return Ok(ApiResponse<AcademicYearPage>.Ok(result));
     }
 
@@ -67,6 +71,8 @@ public sealed class AcademicYearsController(IAcademicYearService service) : Cont
 
     private static IReadOnlyDictionary<string, string[]> ValidateListRequest(
         string? provinceCode,
+        string? status,
+        string? search,
         int page,
         int pageSize)
     {
@@ -79,6 +85,16 @@ public sealed class AcademicYearsController(IAcademicYearService service) : Cont
 
         if (page < 1) errors["page"] = ["Trang phải lớn hơn hoặc bằng 1."];
         if (pageSize is < 1 or > 100) errors["pageSize"] = ["Kích thước trang phải từ 1 đến 100."];
+        if (status is not null && status is not ("DRAFT" or "ACTIVE" or "CLOSED"))
+        {
+            errors["status"] = ["Trạng thái phải là DRAFT, ACTIVE hoặc CLOSED."];
+        }
+
+        if (search?.Length > 100)
+        {
+            errors["search"] = ["Từ khóa tìm kiếm không được vượt quá 100 ký tự."];
+        }
+
         return errors;
     }
 }

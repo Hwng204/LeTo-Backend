@@ -19,6 +19,13 @@ public sealed record AcademicYearPage(
     public int TotalPages => TotalCount == 0 ? 0 : (int)Math.Ceiling((double)TotalCount / PageSize);
 }
 
+public sealed record AcademicYearListQuery(
+    string ProvinceCode,
+    string? Status,
+    string? Search,
+    int Page,
+    int PageSize);
+
 public sealed record ServiceError(
     string Code,
     string Message,
@@ -44,8 +51,6 @@ public interface IAcademicYearService
         CancellationToken cancellationToken);
 
     Task<AcademicYearPage> ListAsync(
-        string provinceCode,
-        int page,
-        int pageSize,
+        AcademicYearListQuery query,
         CancellationToken cancellationToken);
 }

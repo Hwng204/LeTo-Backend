@@ -54,18 +54,21 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
     }
 
     public async Task<AcademicYearPage> ListAsync(
-        string provinceCode,
-        int page,
-        int pageSize,
+        AcademicYearListQuery query,
         CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await repository.ListAsync(
-            provinceCode.Trim(),
-            page,
-            pageSize,
-            cancellationToken);
+        var normalizedQuery = query with
+        {
+            ProvinceCode = query.ProvinceCode.Trim(),
+            Search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim()
+        };
+        var (items, totalCount) = await repository.ListAsync(normalizedQuery, cancellationToken);
 
-        return new AcademicYearPage(items.Select(Map).ToArray(), page, pageSize, totalCount);
+        return new AcademicYearPage(
+            items.Select(Map).ToArray(),
+            normalizedQuery.Page,
+            normalizedQuery.PageSize,
+            totalCount);
     }
 
     private static AcademicYearListItem Map(AcademicYear year) =>

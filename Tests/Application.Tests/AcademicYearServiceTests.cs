@@ -130,9 +130,7 @@ public sealed class AcademicYearServiceTests
         }
 
         public Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-            string provinceCode,
-            int page,
-            int pageSize,
+            AcademicYearListQuery query,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<AcademicYear>, int)>(([], 0));
     }

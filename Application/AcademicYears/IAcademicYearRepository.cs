@@ -16,8 +16,6 @@ public interface IAcademicYearRepository
         CancellationToken cancellationToken);
 
     Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-        string provinceCode,
-        int page,
-        int pageSize,
+        AcademicYearListQuery query,
         CancellationToken cancellationToken);
 }

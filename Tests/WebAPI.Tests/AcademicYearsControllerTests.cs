@@ -17,7 +17,26 @@ public sealed class AcademicYearsControllerTests
         var service = new FakeAcademicYearService();
         var controller = new AcademicYearsController(service);
 
-        var result = await controller.List("1", 0, 101, CancellationToken.None);
+        var result = await controller.List("1", null, null, 0, 101, CancellationToken.None);
+
+        var response = Assert.IsType<UnprocessableEntityObjectResult>(result);
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, response.StatusCode);
+        Assert.Equal(0, service.ListCallCount);
+    }
+
+    [Fact]
+    public async Task List_Returns422ForInvalidStatusAndOversizedSearch()
+    {
+        var service = new FakeAcademicYearService();
+        var controller = new AcademicYearsController(service);
+
+        var result = await controller.List(
+            "01",
+            "DELETED",
+            new string('a', 101),
+            1,
+            20,
+            CancellationToken.None);
 
         var response = Assert.IsType<UnprocessableEntityObjectResult>(result);
         Assert.Equal(StatusCodes.Status422UnprocessableEntity, response.StatusCode);
@@ -86,13 +105,11 @@ public sealed class AcademicYearsControllerTests
             CancellationToken cancellationToken) => Task.FromResult(CreateResult);
 
         public Task<AcademicYearPage> ListAsync(
-            string provinceCode,
-            int page,
-            int pageSize,
+            AcademicYearListQuery query,
             CancellationToken cancellationToken)
         {
             ListCallCount++;
-            return Task.FromResult(new AcademicYearPage([], page, pageSize, 0));
+            return Task.FromResult(new AcademicYearPage([], query.Page, query.PageSize, 0));
         }
     }
 }
