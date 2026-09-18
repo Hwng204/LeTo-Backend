@@ -1,0 +1,93 @@
+using System.Text.Json;
+using Application.Common;
+using Domain.Entities.QuestionBank;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+
+namespace WebAPI.Errors;
+
+public sealed class MatrixExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        var result = Map(exception);
+        httpContext.Response.StatusCode = result.StatusCode;
+        httpContext.Response.ContentType = "application/problem+json";
+
+        var problem = new ProblemDetails
+        {
+            Status = result.StatusCode,
+            Title = result.Title,
+            Detail = result.Detail,
+            Type = $"https://httpstatuses.com/{result.StatusCode}"
+        };
+        problem.Extensions["code"] = result.Code;
+
+        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+        return true;
+    }
+
+    private static ErrorResult Map(Exception exception)
+    {
+        if (exception is UnauthorizedAccessException)
+        {
+            return new ErrorResult(401, "Chưa xác thực", "Cần đăng nhập để thực hiện thao tác này.", "Unauthorized");
+        }
+
+        if (exception is MatrixApplicationException applicationException)
+        {
+            var statusCode = applicationException.Code switch
+            {
+                "Forbidden" => 403,
+                "NotFound" or "TaskNotFound" => 404,
+                "ConcurrencyConflict" or
+                    "TaskAlreadyHasMatrix" or
+                    "PersistenceConflict" or
+                    "InvalidTransition" or
+                    "DirectMatrixRequired" or
+                    "MatrixNotEditable" => 409,
+                "InvalidRequest" or
+                    "EmptyMatrix" or
+                    "InvalidDetail" or
+                    "DuplicateDetail" or
+                    "InvalidReference" or
+                    "InvalidAssignee" or
+                    "InvalidTaskType" or
+                    "TaskScopeRequired" or
+                    "TaskImmutable" => 422,
+                _ => 400
+            };
+
+            return new ErrorResult(
+                statusCode,
+                statusCode == 409 ? "Xung đột dữ liệu" : "Yêu cầu ma trận không hợp lệ",
+                applicationException.Message,
+                applicationException.Code);
+        }
+
+        if (exception is MatrixDomainException domainException)
+        {
+            return new ErrorResult(422, "Dữ liệu ma trận không hợp lệ", domainException.Message, domainException.Code);
+        }
+
+        if (exception is ArgumentException or JsonException)
+        {
+            return new ErrorResult(400, "Yêu cầu không hợp lệ", "Không thể xử lý yêu cầu.", "BadRequest");
+        }
+
+        return new ErrorResult(
+            500,
+            "Lỗi hệ thống",
+            "Đã xảy ra lỗi không mong muốn.",
+            "InternalServerError");
+    }
+
+    private sealed record ErrorResult(
+        int StatusCode,
+        string Title,
+        string Detail,
+        string Code);
+}
