@@ -3,7 +3,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using Application.Provinces;
+using Application.DTOs;
+using Application.Interfaces;
 
 namespace Infrastructure.External.Provinces;
 

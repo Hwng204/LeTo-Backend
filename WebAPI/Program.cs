@@ -1,5 +1,5 @@
-using Application.AcademicYears;
-using Application.Provinces;
+using Application.Services.Implement;
+using Application.Services.Interface;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
