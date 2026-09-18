@@ -57,6 +57,18 @@ public sealed class NsoProvinceProviderTests
     }
 
     [Fact]
+    public async Task FetchAsync_RejectsMalformedXmlAsInvalidProviderData()
+    {
+        using var httpClient = CreateClient("<not-closed>", HttpStatusCode.OK);
+        var provider = new NsoProvinceProvider(httpClient, minimumExpectedCount: 2);
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            provider.FetchAsync(new DateOnly(2026, 9, 18), CancellationToken.None));
+
+        Assert.Contains("malformed XML", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task FetchAsync_RetriesOneTransientServerFailure()
     {
         var handler = new SequenceHttpMessageHandler(

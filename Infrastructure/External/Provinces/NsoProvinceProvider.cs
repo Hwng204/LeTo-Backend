@@ -34,7 +34,15 @@ public sealed partial class NsoProvinceProvider(
             MaxCharactersInDocument = MaximumResponseCharacters,
             XmlResolver = null,
         });
-        var document = await XDocument.LoadAsync(reader, LoadOptions.None, cancellationToken);
+        XDocument document;
+        try
+        {
+            document = await XDocument.LoadAsync(reader, LoadOptions.None, cancellationToken);
+        }
+        catch (XmlException exception)
+        {
+            throw new InvalidDataException("Province provider returned malformed XML.", exception);
+        }
 
         var provinces = document
             .Descendants()
