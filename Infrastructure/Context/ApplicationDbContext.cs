@@ -11,6 +11,7 @@ namespace Infrastructure.Context;
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options)
 {
+    public DbSet<Province> Provinces => Set<Province>();
     public DbSet<School> Schools => Set<School>();
     public DbSet<SchoolBranch> SchoolBranches => Set<SchoolBranch>();
     public DbSet<SchoolClass> SchoolClasses => Set<SchoolClass>();
