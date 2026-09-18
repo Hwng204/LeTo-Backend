@@ -1,4 +1,4 @@
-using Domain.Entities.Identity;
+using IdentityStudent = Domain.Entities.Identity.Student;
 
 namespace Domain.Entities.Examination;
 
@@ -11,7 +11,7 @@ public sealed class ExamRegistration
     public string Status { get; set; } = string.Empty;
 
     public ExamSubjectGradeLevel ExamSubjectGradeLevel { get; set; } = null!;
-    public Student Student { get; set; } = null!;
+    public IdentityStudent Student { get; set; } = null!;
     public SessionRoom? SessionRoom { get; set; }
     public ExamAttempt? Attempt { get; set; }
 }
