@@ -11,6 +11,11 @@ namespace Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateIndex(
+                name: "ix_semesters_academic_year_id_migration",
+                table: "semesters",
+                column: "academic_year_id");
+
             migrationBuilder.DropIndex(
                 name: "uq_semesters_year_name",
                 table: "semesters");
@@ -86,6 +91,10 @@ namespace Infrastructure.Migrations
                 columns: new[] { "academic_year_id", "semester_order" },
                 unique: true);
 
+            migrationBuilder.DropIndex(
+                name: "ix_semesters_academic_year_id_migration",
+                table: "semesters");
+
             migrationBuilder.AddCheckConstraint(
                 name: "ck_semesters_dates",
                 table: "semesters",
@@ -105,6 +114,11 @@ namespace Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateIndex(
+                name: "ix_semesters_academic_year_id_migration",
+                table: "semesters",
+                column: "academic_year_id");
+
             migrationBuilder.DropIndex(
                 name: "uq_semesters_year_order",
                 table: "semesters");
@@ -158,6 +172,10 @@ namespace Infrastructure.Migrations
                 table: "semesters",
                 columns: new[] { "academic_year_id", "name" },
                 unique: true);
+
+            migrationBuilder.DropIndex(
+                name: "ix_semesters_academic_year_id_migration",
+                table: "semesters");
 
             migrationBuilder.AddCheckConstraint(
                 name: "ck_semesters_dates",
