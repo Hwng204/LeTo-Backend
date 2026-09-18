@@ -1,4 +1,5 @@
 using Application.AcademicYears;
+using Application.Provinces;
 using Infrastructure.Context;
 using Infrastructure.Repositories.Implementations;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,8 @@ public static class DependencyInjection
 
         services.AddScoped<IAcademicYearRepository, AcademicYearRepository>();
         services.AddScoped<IAcademicYearService, AcademicYearService>();
+        services.AddScoped<IProvinceRepository, ProvinceRepository>();
+        services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
 
         return services;
     }
