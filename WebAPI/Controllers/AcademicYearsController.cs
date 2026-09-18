@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Application.Common;
 using Application.DTOs;
-using Application.Services.Interface;
+using Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

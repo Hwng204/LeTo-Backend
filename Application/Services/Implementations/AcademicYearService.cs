@@ -2,10 +2,10 @@ using Application.Common;
 using Application.DTOs;
 using Application.Interfaces;
 using Application.Mappings;
-using Application.Services.Interface;
+using Application.Services.Interfaces;
 using Domain.Entities.Academic;
 
-namespace Application.Services.Implement;
+namespace Application.Services.Implementations;
 
 public sealed class AcademicYearService(IAcademicYearRepository repository) : IAcademicYearService
 {
