@@ -23,17 +23,7 @@ public sealed partial class NsoProvinceProvider(
         DateOnly asOfDate,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, EndpointPath);
-        request.Headers.Add("SOAPAction", "http://tempuri.org/DanhMucTinh");
-        request.Content = new StringContent(
-            CreateSoapRequest(asOfDate),
-            Encoding.UTF8,
-            "text/xml");
-
-        using var response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
+        using var response = await SendWithRetryAsync(asOfDate, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -54,6 +44,51 @@ public sealed partial class NsoProvinceProvider(
 
         Validate(provinces);
         return provinces;
+    }
+
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        DateOnly asOfDate,
+        CancellationToken cancellationToken)
+    {
+        const int maximumAttempts = 2;
+        for (var attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            try
+            {
+                using var request = CreateRequest(asOfDate);
+                var response = await httpClient.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+                if (attempt < maximumAttempts && (int)response.StatusCode >= 500)
+                {
+                    response.Dispose();
+                    continue;
+                }
+
+                return response;
+            }
+            catch (HttpRequestException) when (attempt < maximumAttempts)
+            {
+            }
+            catch (TaskCanceledException) when (
+                attempt < maximumAttempts && !cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
+
+        throw new InvalidOperationException("Province provider retry loop ended unexpectedly.");
+    }
+
+    private static HttpRequestMessage CreateRequest(DateOnly asOfDate)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, EndpointPath);
+        request.Headers.Add("SOAPAction", "http://tempuri.org/DanhMucTinh");
+        request.Content = new StringContent(
+            CreateSoapRequest(asOfDate),
+            Encoding.UTF8,
+            "text/xml");
+        return request;
     }
 
     private static ProvinceCatalogItem ParseProvince(XElement row)

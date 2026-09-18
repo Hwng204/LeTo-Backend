@@ -10,9 +10,9 @@ public sealed class ProvinceCatalogServiceTests
     {
         var repository = new FakeProvinceRepository(
         [
-            new ProvinceOption("79", "Thành phố Hồ Chí Minh", false),
-            new ProvinceOption("48", "Đà Nẵng", true),
-            new ProvinceOption("01", "Hà Nội", true)
+            new ProvinceOption("79", "Thành phố Hồ Chí Minh", false, 0),
+            new ProvinceOption("48", "Đà Nẵng", true, 3),
+            new ProvinceOption("01", "Hà Nội", true, 1)
         ]);
         var service = new ProvinceCatalogService(repository);
 
@@ -30,5 +30,15 @@ public sealed class ProvinceCatalogServiceTests
     {
         public Task<IReadOnlyList<ProvinceOption>> ListActiveAsync(
             CancellationToken cancellationToken) => Task.FromResult(options);
+
+        public Task<IReadOnlySet<string>> ListActiveCodesAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+
+        public Task SynchronizeAsync(
+            IReadOnlyList<ProvinceCatalogItem> provinces,
+            string source,
+            DateTimeOffset synchronizedAt,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

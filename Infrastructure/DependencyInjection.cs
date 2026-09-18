@@ -33,7 +33,9 @@ public static class DependencyInjection
         services.AddScoped<IAcademicYearService, AcademicYearService>();
         services.AddScoped<IProvinceRepository, ProvinceRepository>();
         services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
+        services.AddScoped<IProvinceSyncService, ProvinceSyncService>();
         services.AddSingleton<IProvinceProvider>(_ => CreateProvinceProvider(configuration));
+        services.AddSingleton(TimeProvider.System);
 
         return services;
     }

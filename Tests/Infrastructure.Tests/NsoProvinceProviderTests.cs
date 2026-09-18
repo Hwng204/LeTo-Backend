@@ -56,6 +56,29 @@ public sealed class NsoProvinceProviderTests
         Assert.Contains("at least 2", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task FetchAsync_RetriesOneTransientServerFailure()
+    {
+        var handler = new SequenceHttpMessageHandler(
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SoapResponse(
+                    Row("01", "Thành phố Hà Nội", "Thành phố Trung ương"),
+                    Row("04", "Tỉnh Cao Bằng", "Tỉnh")), Encoding.UTF8, "text/xml"),
+            });
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://danhmuchanhchinh.nso.gov.vn/"),
+        };
+        var provider = new NsoProvinceProvider(httpClient, minimumExpectedCount: 2);
+
+        var result = await provider.FetchAsync(new DateOnly(2026, 9, 18), CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
     private static HttpClient CreateClient(string responseBody, HttpStatusCode statusCode) =>
         new(new StubHttpMessageHandler(responseBody, statusCode))
         {
@@ -91,5 +114,21 @@ public sealed class NsoProvinceProviderTests
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "text/xml"),
             });
+    }
+
+    private sealed class SequenceHttpMessageHandler(params HttpResponseMessage[] responses)
+        : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses = new(responses);
+
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(_responses.Dequeue());
+        }
     }
 }
