@@ -1,5 +1,11 @@
 namespace Application.AcademicYears;
 
+public sealed record CreateAcademicYearRequest(
+    string ProvinceCode,
+    string Name,
+    DateOnly StartDate,
+    DateOnly EndDate);
+
 public sealed record AcademicYearListItem(
     ulong Id,
     string Code,
@@ -44,6 +50,40 @@ public sealed record ServiceResult<T>(T? Value, ServiceError? Error)
         new(default, new ServiceError(code, message, details));
 }
 
+public sealed record SemesterDto(
+    ulong Id,
+    byte Order,
+    string Name,
+    DateOnly? StartDate,
+    DateOnly? EndDate,
+    string Status,
+    uint Version);
+
+public sealed record AcademicYearDetailDto(
+    ulong Id,
+    string Code,
+    string ProvinceCode,
+    string Name,
+    DateOnly StartDate,
+    DateOnly EndDate,
+    string Status,
+    uint Version,
+    IReadOnlyList<SemesterDto> Semesters);
+
+public sealed record UpdateAcademicYearRequest(
+    string Name,
+    DateOnly StartDate,
+    DateOnly EndDate);
+
+public sealed record ConfigureTermItem(
+    byte Order,
+    string Name,
+    DateOnly? StartDate,
+    DateOnly? EndDate);
+
+public sealed record ConfigureTermsRequest(
+    IReadOnlyList<ConfigureTermItem> Terms);
+
 public interface IAcademicYearService
 {
     Task<ServiceResult<AcademicYearListItem>> CreateAsync(
@@ -52,5 +92,32 @@ public interface IAcademicYearService
 
     Task<AcademicYearPage> ListAsync(
         AcademicYearListQuery query,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<AcademicYearDetailDto>> GetByIdAsync(
+        ulong id,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<AcademicYearDetailDto>> UpdateAsync(
+        ulong id,
+        UpdateAcademicYearRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<AcademicYearDetailDto>> ActivateAsync(
+        ulong id,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<AcademicYearDetailDto>> CloseAsync(
+        ulong id,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<AcademicYearDetailDto>> ConfigureTermsAsync(
+        ulong id,
+        ConfigureTermsRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<SemesterDto>> CloseTermAsync(
+        ulong yearId,
+        ulong termId,
         CancellationToken cancellationToken);
 }

@@ -1,7 +1,9 @@
 using Application.AcademicYears;
 using Application.Provinces;
 using Infrastructure;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using WebAPI.Authentication;
 using WebAPI.ExceptionHandling;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,7 +17,24 @@ builder.Services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
 builder.Services.AddScoped<IProvinceSyncService, ProvinceSyncService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddAuthentication("DevBearer")
+        .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>("DevBearer", _ => { });
+}
+else
+{
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+}
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("OperationalAdmin", policy =>
@@ -33,6 +52,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();

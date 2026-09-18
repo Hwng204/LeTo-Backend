@@ -111,5 +111,38 @@ public sealed class AcademicYearsControllerTests
             ListCallCount++;
             return Task.FromResult(new AcademicYearPage([], query.Page, query.PageSize, 0));
         }
+
+        public Task<ServiceResult<AcademicYearDetailDto>> GetByIdAsync(
+            ulong id,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<AcademicYearDetailDto>.Failure("ACADEMIC_YEAR_NOT_FOUND", "Not found"));
+
+        public Task<ServiceResult<AcademicYearDetailDto>> UpdateAsync(
+            ulong id,
+            UpdateAcademicYearRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<AcademicYearDetailDto>.Failure("ACADEMIC_YEAR_NOT_FOUND", "Not found"));
+
+        public Task<ServiceResult<AcademicYearDetailDto>> ActivateAsync(
+            ulong id,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<AcademicYearDetailDto>.Failure("ACADEMIC_YEAR_NOT_FOUND", "Not found"));
+
+        public Task<ServiceResult<AcademicYearDetailDto>> CloseAsync(
+            ulong id,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<AcademicYearDetailDto>.Failure("ACADEMIC_YEAR_NOT_FOUND", "Not found"));
+
+        public Task<ServiceResult<AcademicYearDetailDto>> ConfigureTermsAsync(
+            ulong id,
+            ConfigureTermsRequest request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<AcademicYearDetailDto>.Failure("ACADEMIC_YEAR_NOT_FOUND", "Not found"));
+
+        public Task<ServiceResult<SemesterDto>> CloseTermAsync(
+            ulong yearId,
+            ulong termId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ServiceResult<SemesterDto>.Failure("TERM_NOT_FOUND", "Not found"));
     }
 }

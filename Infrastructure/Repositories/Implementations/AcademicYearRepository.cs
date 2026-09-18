@@ -82,4 +82,58 @@ public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcad
 
         return (items, totalCount);
     }
+
+    public Task<AcademicYear?> GetByIdWithSemestersAsync(
+        ulong id,
+        CancellationToken cancellationToken) =>
+        context.AcademicYears
+            .Include(year => year.Semesters)
+            .FirstOrDefaultAsync(year => year.Id == id, cancellationToken);
+
+    public Task<bool> HasConflictExceptCurrentAsync(
+        string provinceCode,
+        ulong currentYearId,
+        string name,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken) =>
+        context.AcademicYears.AsNoTracking().AnyAsync(
+            year => year.ProvinceCode == provinceCode &&
+                    year.Id != currentYearId &&
+                    (year.Name == name ||
+                     (year.StartDate <= endDate && startDate <= year.EndDate)),
+            cancellationToken);
+
+    public Task<bool> HasActiveYearInProvinceAsync(
+        string provinceCode,
+        ulong exceptYearId,
+        CancellationToken cancellationToken) =>
+        context.AcademicYears.AsNoTracking().AnyAsync(
+            year => year.ProvinceCode == provinceCode &&
+                    year.Id != exceptYearId &&
+                    year.Status == "ACTIVE",
+            cancellationToken);
+
+    public async Task<bool> UpdateAsync(
+        AcademicYear academicYear,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is MySqlException { Number: 1062 })
+        {
+            return false;
+        }
+    }
+
+    public Task CommitAsync(CancellationToken cancellationToken) =>
+        context.SaveChangesAsync(cancellationToken);
 }

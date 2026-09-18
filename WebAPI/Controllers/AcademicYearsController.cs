@@ -69,6 +69,144 @@ public sealed class AcademicYearsController(IAcademicYearService service) : Cont
         };
     }
 
+    [HttpGet("{id:long}")]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById([FromRoute] ulong id, CancellationToken cancellationToken)
+    {
+        var result = await service.GetByIdAsync(id, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<AcademicYearDetailDto>.Ok(result.Value));
+        }
+
+        var error = result.Error!;
+        return NotFound(ApiResponse<AcademicYearDetailDto>.Fail(error.Code, error.Message, error.Details));
+    }
+
+    [HttpPatch("{id:long}")]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Update(
+        [FromRoute] ulong id,
+        [FromBody] UpdateAcademicYearRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.UpdateAsync(id, request, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<AcademicYearDetailDto>.Ok(result.Value, "Đã cập nhật năm học."));
+        }
+
+        var error = result.Error!;
+        var response = ApiResponse<AcademicYearDetailDto>.Fail(error.Code, error.Message, error.Details);
+        return error.Code switch
+        {
+            "VALIDATION_ERROR" => UnprocessableEntity(response),
+            "ACADEMIC_YEAR_NOT_FOUND" => NotFound(response),
+            "ACADEMIC_YEAR_CLOSED" or "ACADEMIC_YEAR_CONFLICT" => Conflict(response),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:long}/activate")]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Activate([FromRoute] ulong id, CancellationToken cancellationToken)
+    {
+        var result = await service.ActivateAsync(id, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<AcademicYearDetailDto>.Ok(result.Value, "Đã kích hoạt năm học."));
+        }
+
+        var error = result.Error!;
+        var response = ApiResponse<AcademicYearDetailDto>.Fail(error.Code, error.Message, error.Details);
+        return error.Code switch
+        {
+            "ACADEMIC_YEAR_NOT_FOUND" => NotFound(response),
+            "ACADEMIC_YEAR_ALREADY_ACTIVE" or "ACADEMIC_YEAR_CLOSED" or "INCOMPLETE_TERMS" or "ACTIVE_YEAR_CONFLICT" => Conflict(response),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:long}/close")]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Close([FromRoute] ulong id, CancellationToken cancellationToken)
+    {
+        var result = await service.CloseAsync(id, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<AcademicYearDetailDto>.Ok(result.Value, "Đã đóng năm học."));
+        }
+
+        var error = result.Error!;
+        var response = ApiResponse<AcademicYearDetailDto>.Fail(error.Code, error.Message, error.Details);
+        return error.Code switch
+        {
+            "ACADEMIC_YEAR_NOT_FOUND" => NotFound(response),
+            "ACADEMIC_YEAR_ALREADY_CLOSED" => Conflict(response),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPut("{id:long}/terms")]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse<AcademicYearDetailDto>), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ConfigureTerms(
+        [FromRoute] ulong id,
+        [FromBody] ConfigureTermsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.ConfigureTermsAsync(id, request, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<AcademicYearDetailDto>.Ok(result.Value, "Đã cấu hình học kỳ."));
+        }
+
+        var error = result.Error!;
+        var response = ApiResponse<AcademicYearDetailDto>.Fail(error.Code, error.Message, error.Details);
+        return error.Code switch
+        {
+            "VALIDATION_ERROR" => UnprocessableEntity(response),
+            "ACADEMIC_YEAR_NOT_FOUND" => NotFound(response),
+            "ACADEMIC_YEAR_CLOSED" or "TERM_CLOSED" => Conflict(response),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{yearId:long}/terms/{termId:long}/close")]
+    [ProducesResponseType(typeof(ApiResponse<SemesterDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<SemesterDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<SemesterDto>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CloseTerm(
+        [FromRoute] ulong yearId,
+        [FromRoute] ulong termId,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.CloseTermAsync(yearId, termId, cancellationToken);
+        if (result.IsSuccess && result.Value is not null)
+        {
+            return Ok(ApiResponse<SemesterDto>.Ok(result.Value, "Đã đóng học kỳ."));
+        }
+
+        var error = result.Error!;
+        var response = ApiResponse<SemesterDto>.Fail(error.Code, error.Message, error.Details);
+        return error.Code switch
+        {
+            "ACADEMIC_YEAR_NOT_FOUND" or "TERM_NOT_FOUND" => NotFound(response),
+            "TERM_ALREADY_CLOSED" => Conflict(response),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
     private static IReadOnlyDictionary<string, string[]> ValidateListRequest(
         string? provinceCode,
         string? status,

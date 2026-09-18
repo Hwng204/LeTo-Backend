@@ -105,6 +105,208 @@ public sealed class AcademicYearServiceTests
         Assert.Equal("ACADEMIC_YEAR_CONFLICT", result.Error?.Code);
     }
 
+    [Fact]
+    public async Task GetByIdAsync_ReturnsNotFound_WhenYearDoesNotExist()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var service = new AcademicYearService(repository);
+
+        var result = await service.GetByIdAsync(999, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("ACADEMIC_YEAR_NOT_FOUND", result.Error?.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReturnsConflict_WhenYearIsClosed()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var closedYear = new AcademicYear
+        {
+            Id = 1,
+            Name = "2025-2026",
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 5, 31),
+            Status = "CLOSED",
+            ProvinceCode = "01"
+        };
+        repository.AddedYears.Add(closedYear);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.UpdateAsync(
+            1,
+            new UpdateAcademicYearRequest("2025-2026", new DateOnly(2025, 9, 1), new DateOnly(2026, 6, 1)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("ACADEMIC_YEAR_CLOSED", result.Error?.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesDatesAndName_WhenValid()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "DRAFT",
+            ProvinceCode = "01"
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.UpdateAsync(
+            1,
+            new UpdateAcademicYearRequest("2026-2027", new DateOnly(2026, 9, 5), new DateOnly(2027, 5, 25)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("2026-2027", result.Value?.Name);
+        Assert.Equal(new DateOnly(2026, 9, 5), result.Value?.StartDate);
+        Assert.Equal(new DateOnly(2027, 5, 25), result.Value?.EndDate);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_ReturnsConflict_WhenIncompleteTerms()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "DRAFT",
+            ProvinceCode = "01"
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.ActivateAsync(1, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("INCOMPLETE_TERMS", result.Error?.Code);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_ActivatesYear_WhenHasTwoTerms()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "DRAFT",
+            ProvinceCode = "01",
+            Semesters = new List<Semester>
+            {
+                new() { Id = 10, Order = 1, Name = "Học kỳ 1", Status = "PLANNED" },
+                new() { Id = 11, Order = 2, Name = "Học kỳ 2", Status = "PLANNED" }
+            }
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.ActivateAsync(1, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("ACTIVE", result.Value?.Status);
+    }
+
+    [Fact]
+    public async Task CloseAsync_ClosesYearAndCascadesToTerms()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "ACTIVE",
+            ProvinceCode = "01",
+            Semesters = new List<Semester>
+            {
+                new() { Id = 10, Order = 1, Name = "Học kỳ 1", Status = "ACTIVE" },
+                new() { Id = 11, Order = 2, Name = "Học kỳ 2", Status = "PLANNED" }
+            }
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.CloseAsync(1, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("CLOSED", result.Value?.Status);
+        Assert.All(result.Value!.Semesters, s => Assert.Equal("CLOSED", s.Status));
+    }
+
+    [Fact]
+    public async Task ConfigureTermsAsync_UpdatesTermsSuccessfully()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "DRAFT",
+            ProvinceCode = "01",
+            Semesters = new List<Semester>
+            {
+                new() { Id = 10, Order = 1, Name = "Học kỳ 1", Status = "PLANNED" },
+                new() { Id = 11, Order = 2, Name = "Học kỳ 2", Status = "PLANNED" }
+            }
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var request = new ConfigureTermsRequest(new List<ConfigureTermItem>
+        {
+            new(1, "Học kỳ I", new DateOnly(2026, 9, 5), new DateOnly(2027, 1, 15)),
+            new(2, "Học kỳ II", new DateOnly(2027, 1, 16), new DateOnly(2027, 5, 25))
+        });
+
+        var result = await service.ConfigureTermsAsync(1, request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Học kỳ I", result.Value?.Semesters[0].Name);
+        Assert.Equal("Học kỳ II", result.Value?.Semesters[1].Name);
+    }
+
+    [Fact]
+    public async Task CloseTermAsync_ClosesSingleTerm()
+    {
+        var repository = new FakeAcademicYearRepository();
+        var year = new AcademicYear
+        {
+            Id = 1,
+            Name = "2026-2027",
+            StartDate = new DateOnly(2026, 9, 1),
+            EndDate = new DateOnly(2027, 5, 31),
+            Status = "ACTIVE",
+            ProvinceCode = "01",
+            Semesters = new List<Semester>
+            {
+                new() { Id = 10, Order = 1, Name = "Học kỳ 1", Status = "ACTIVE" },
+                new() { Id = 11, Order = 2, Name = "Học kỳ 2", Status = "PLANNED" }
+            }
+        };
+        repository.AddedYears.Add(year);
+        var service = new AcademicYearService(repository);
+
+        var result = await service.CloseTermAsync(1, 10, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("CLOSED", result.Value?.Status);
+    }
+
     private static CreateAcademicYearRequest ValidRequest() =>
         new("01", "2026-2027", new DateOnly(2026, 8, 15), new DateOnly(2027, 5, 31));
 
@@ -133,5 +335,33 @@ public sealed class AcademicYearServiceTests
             AcademicYearListQuery query,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<AcademicYear>, int)>(([], 0));
+
+        public Task<AcademicYear?> GetByIdWithSemestersAsync(
+            ulong id,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(AddedYears.FirstOrDefault(y => y.Id == id));
+
+        public Task<bool> HasConflictExceptCurrentAsync(
+            string provinceCode,
+            ulong currentId,
+            string name,
+            DateOnly startDate,
+            DateOnly endDate,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
+        public Task<bool> HasActiveYearInProvinceAsync(
+            string provinceCode,
+            ulong currentId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
+        public Task<bool> UpdateAsync(
+            AcademicYear academicYear,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+
+        public Task CommitAsync(CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }
