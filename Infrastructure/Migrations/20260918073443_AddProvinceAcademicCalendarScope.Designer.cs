@@ -4,6 +4,7 @@ using Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918073443_AddProvinceAcademicCalendarScope")]
+    partial class AddProvinceAcademicCalendarScope
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,18 +89,6 @@ namespace Infrastructure.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
-                    b.Property<string>("ActiveProvinceCode")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasMaxLength(2)
-                        .HasColumnType("varchar(2)")
-                        .HasColumnName("active_province_code")
-                        .HasComputedColumnSql("CASE WHEN status = 'ACTIVE' THEN province_code ELSE NULL END", true);
-
-                    b.Property<string>("Code")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("code");
-
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
@@ -133,14 +124,6 @@ namespace Infrastructure.Migrations
                         .HasColumnName("version");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ActiveProvinceCode")
-                        .IsUnique()
-                        .HasDatabaseName("uq_academic_years_active_province");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("uq_academic_years_code");
 
                     b.HasIndex("ProvinceCode", "Name")
                         .IsUnique()
@@ -199,7 +182,7 @@ namespace Infrastructure.Migrations
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("academic_year_id");
 
-                    b.Property<DateOnly?>("EndDate")
+                    b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
 
@@ -209,42 +192,19 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("name");
 
-                    b.Property<byte>("Order")
-                        .HasColumnType("tinyint unsigned")
-                        .HasColumnName("semester_order");
-
-                    b.Property<DateOnly?>("StartDate")
+                    b.Property<DateOnly>("StartDate")
                         .HasColumnType("date")
                         .HasColumnName("start_date");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)")
-                        .HasDefaultValue("PLANNED")
-                        .HasColumnName("status");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int unsigned")
-                        .HasDefaultValue(1u)
-                        .HasColumnName("version");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("AcademicYearId", "Order")
+                    b.HasIndex("AcademicYearId", "Name")
                         .IsUnique()
-                        .HasDatabaseName("uq_semesters_year_order");
+                        .HasDatabaseName("uq_semesters_year_name");
 
                     b.ToTable("semesters", null, t =>
                         {
-                            t.HasCheckConstraint("ck_semesters_dates", "(start_date IS NULL AND end_date IS NULL) OR end_date > start_date");
-
-                            t.HasCheckConstraint("ck_semesters_order", "semester_order IN (1, 2)");
-
-                            t.HasCheckConstraint("ck_semesters_status", "status IN ('PLANNED', 'ACTIVE', 'CLOSED')");
+                            t.HasCheckConstraint("ck_semesters_dates", "end_date >= start_date");
                         });
                 });
 
@@ -1640,12 +1600,6 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)")
                         .HasColumnName("name");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("source");
 
                     b.HasKey("Code");
 

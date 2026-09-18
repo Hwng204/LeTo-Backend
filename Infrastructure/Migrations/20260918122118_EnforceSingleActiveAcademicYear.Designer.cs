@@ -4,6 +4,7 @@ using Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918122118_EnforceSingleActiveAcademicYear")]
+    partial class EnforceSingleActiveAcademicYear
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -93,11 +96,6 @@ namespace Infrastructure.Migrations
                         .HasColumnName("active_province_code")
                         .HasComputedColumnSql("CASE WHEN status = 'ACTIVE' THEN province_code ELSE NULL END", true);
 
-                    b.Property<string>("Code")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("code");
-
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
@@ -137,10 +135,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("ActiveProvinceCode")
                         .IsUnique()
                         .HasDatabaseName("uq_academic_years_active_province");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("uq_academic_years_code");
 
                     b.HasIndex("ProvinceCode", "Name")
                         .IsUnique()
