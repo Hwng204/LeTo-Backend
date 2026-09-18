@@ -1,4 +1,6 @@
+using Application.AcademicYears;
 using Infrastructure.Context;
+using Infrastructure.Repositories.Implementations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,9 @@ public static class DependencyInjection
                 new MySqlServerVersion(new Version(8, 0, 0)),
                 mysql => mysql.MigrationsAssembly(
                     typeof(ApplicationDbContext).Assembly.GetName().Name)));
+
+        services.AddScoped<IAcademicYearRepository, AcademicYearRepository>();
+        services.AddScoped<IAcademicYearService, AcademicYearService>();
 
         return services;
     }

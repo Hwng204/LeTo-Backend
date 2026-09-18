@@ -13,7 +13,7 @@ public interface IAcademicYearRepository
         DateOnly endDate,
         CancellationToken cancellationToken);
 
-    Task AddAsync(AcademicYear academicYear, CancellationToken cancellationToken);
+    Task<bool> TryAddAsync(AcademicYear academicYear, CancellationToken cancellationToken);
 
     Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
         string provinceCode,

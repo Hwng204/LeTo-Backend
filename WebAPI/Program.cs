@@ -1,4 +1,5 @@
 using Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("OperationalAdmin", policy =>
+        policy.RequireAuthenticatedUser().RequireAssertion(context =>
+            context.User.IsInRole("OperationalAdmin") ||
+            context.User.HasClaim("permission", "academic_calendar.manage")));
+});
 
 var app = builder.Build();
 
@@ -16,6 +25,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program;

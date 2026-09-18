@@ -53,7 +53,13 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
             ]
         };
 
-        await repository.AddAsync(academicYear, cancellationToken);
+        if (!await repository.TryAddAsync(academicYear, cancellationToken))
+        {
+            return ServiceResult<AcademicYearListItem>.Failure(
+                "ACADEMIC_YEAR_CONFLICT",
+                "Năm học vừa được tạo bởi một yêu cầu khác. Vui lòng tải lại dữ liệu.");
+        }
+
         return ServiceResult<AcademicYearListItem>.Success(Map(academicYear));
     }
 
