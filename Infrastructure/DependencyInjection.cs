@@ -1,5 +1,4 @@
-using Application.AcademicYears;
-using Application.Provinces;
+using Application.Interfaces;
 using Infrastructure.Context;
 using Infrastructure.External.Provinces;
 using Infrastructure.Repositories.Implementations;

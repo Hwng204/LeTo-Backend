@@ -1,6 +1,9 @@
 using System.Globalization;
+using Application.DTOs;
+using Application.Interfaces;
+using Application.Services.Interface;
 
-namespace Application.Provinces;
+namespace Application.Services.Implement;
 
 public sealed class ProvinceCatalogService(IProvinceRepository repository) : IProvinceCatalogService
 {

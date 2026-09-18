@@ -1,6 +1,11 @@
+using Application.Common;
+using Application.DTOs;
+using Application.Interfaces;
+using Application.Mappings;
+using Application.Services.Interface;
 using Domain.Entities.Academic;
 
-namespace Application.AcademicYears;
+namespace Application.Services.Implement;
 
 public sealed class AcademicYearService(IAcademicYearRepository repository) : IAcademicYearService
 {
@@ -50,7 +55,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Năm học bị trùng tên hoặc chồng lấn thời gian trong cùng tỉnh.");
         }
 
-        return ServiceResult<AcademicYearListItem>.Success(Map(academicYear));
+        return ServiceResult<AcademicYearListItem>.Success(academicYear.ToListItem());
     }
 
     public async Task<AcademicYearPage> ListAsync(
@@ -65,7 +70,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         var (items, totalCount) = await repository.ListAsync(normalizedQuery, cancellationToken);
 
         return new AcademicYearPage(
-            items.Select(Map).ToArray(),
+            items.Select(year => year.ToListItem()).ToArray(),
             normalizedQuery.Page,
             normalizedQuery.PageSize,
             totalCount);
@@ -83,7 +88,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        return ServiceResult<AcademicYearDetailDto>.Success(MapDetail(year));
+        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<AcademicYearDetailDto>> UpdateAsync(
@@ -159,7 +164,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Xung đột dữ liệu khi cập nhật năm học.");
         }
 
-        return ServiceResult<AcademicYearDetailDto>.Success(MapDetail(year));
+        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<AcademicYearDetailDto>> ActivateAsync(
@@ -213,7 +218,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không thể kích hoạt vì đã có năm học khác đang áp dụng.");
         }
 
-        return ServiceResult<AcademicYearDetailDto>.Success(MapDetail(year));
+        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<AcademicYearDetailDto>> CloseAsync(
@@ -248,7 +253,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         }
 
         await repository.CommitAsync(cancellationToken);
-        return ServiceResult<AcademicYearDetailDto>.Success(MapDetail(year));
+        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<AcademicYearDetailDto>> ConfigureTermsAsync(
@@ -300,7 +305,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         }
 
         await repository.CommitAsync(cancellationToken);
-        return ServiceResult<AcademicYearDetailDto>.Success(MapDetail(year));
+        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<SemesterDto>> CloseTermAsync(
@@ -335,39 +340,6 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         term.Version++;
 
         await repository.CommitAsync(cancellationToken);
-        return ServiceResult<SemesterDto>.Success(MapSemester(term));
+        return ServiceResult<SemesterDto>.Success(term.ToDto());
     }
-
-    private static AcademicYearDetailDto MapDetail(AcademicYear year) =>
-        new(
-            year.Id,
-            year.Code ?? string.Empty,
-            year.ProvinceCode ?? string.Empty,
-            year.Name,
-            year.StartDate,
-            year.EndDate,
-            year.Status,
-            year.Version,
-            year.Semesters.OrderBy(s => s.Order).Select(MapSemester).ToArray());
-
-    private static SemesterDto MapSemester(Semester s) =>
-        new(
-            s.Id,
-            s.Order,
-            s.Name,
-            s.StartDate,
-            s.EndDate,
-            s.Status,
-            s.Version);
-
-    private static AcademicYearListItem Map(AcademicYear year) =>
-        new(
-            year.Id,
-            year.Code ?? string.Empty,
-            year.ProvinceCode ?? string.Empty,
-            year.Name,
-            year.StartDate,
-            year.EndDate,
-            year.Status,
-            year.Version);
 }

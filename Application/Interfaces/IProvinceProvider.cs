@@ -1,6 +1,6 @@
-namespace Application.Provinces;
+using Application.DTOs;
 
-public sealed record ProvinceCatalogItem(string Code, string Name, string DivisionType);
+namespace Application.Interfaces;
 
 public interface IProvinceProvider
 {

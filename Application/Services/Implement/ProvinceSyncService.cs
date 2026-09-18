@@ -1,4 +1,8 @@
-namespace Application.Provinces;
+using Application.DTOs;
+using Application.Interfaces;
+using Application.Services.Interface;
+
+namespace Application.Services.Implement;
 
 public sealed class ProvinceSyncService(
     IProvinceProvider provider,

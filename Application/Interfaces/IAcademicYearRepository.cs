@@ -1,6 +1,7 @@
+using Application.DTOs;
 using Domain.Entities.Academic;
 
-namespace Application.AcademicYears;
+namespace Application.Interfaces;
 
 public enum AcademicYearCreateOutcome
 {

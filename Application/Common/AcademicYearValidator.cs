@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
+using Application.DTOs;
 
-namespace Application.AcademicYears;
+namespace Application.Common;
 
 public sealed record AcademicYearValidationResult(
     IReadOnlyDictionary<string, string[]> Errors)
