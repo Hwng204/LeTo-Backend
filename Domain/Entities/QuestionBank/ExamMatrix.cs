@@ -10,6 +10,9 @@ public sealed class ExamMatrix
     public ulong? TaskId { get; set; }
     public ulong? SemesterId { get; set; }
     public ulong AcademicContextId { get; set; }
+    public string? RejectComment { get; set; }
+    public ulong? RejectedByUserId { get; set; }
+    public DateTime? RejectedAt { get; set; }
 
     public WorkTask? Task { get; set; }
     public Semester? Semester { get; set; }
@@ -120,23 +123,28 @@ public sealed class ExamMatrix
         }
 
         Status = MatrixStatusCodes.Submitted;
+        ClearRejection();
     }
 
-    public void Withdraw(MatrixActor actor)
+    // The PHT sends a submitted matrix back to the Team Lead (Draft) with an optional comment.
+    public void Reject(MatrixActor actor, string? comment, DateTime rejectedAtUtc)
     {
-        if (Status != MatrixStatusCodes.Submitted)
-        {
-            throw InvalidTransition("Chỉ thu hồi được ma trận đã nộp.");
-        }
-
-        if (!IsAssignedTeamLead(actor))
+        if (actor.Role != MatrixActorRole.Pht)
         {
             throw new MatrixDomainException(
                 "Forbidden",
-                "Chỉ Tổ trưởng được giao mới được thu hồi ma trận này.");
+                "Chỉ PHT mới được từ chối ma trận.");
+        }
+
+        if (Status != MatrixStatusCodes.Submitted)
+        {
+            throw InvalidTransition("Chỉ từ chối được ma trận đã nộp.");
         }
 
         Status = MatrixStatusCodes.Draft;
+        RejectComment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+        RejectedByUserId = actor.UserId;
+        RejectedAt = rejectedAtUtc;
     }
 
     public void Approve(MatrixActor actor)
@@ -234,6 +242,13 @@ public sealed class ExamMatrix
         }
 
         return clone;
+    }
+
+    private void ClearRejection()
+    {
+        RejectComment = null;
+        RejectedByUserId = null;
+        RejectedAt = null;
     }
 
     private bool IsAssignedTeamLead(MatrixActor actor)

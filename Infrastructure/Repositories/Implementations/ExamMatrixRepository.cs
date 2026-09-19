@@ -157,7 +157,11 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db)
         var affected = await Db.ExamMatrices
             .Where(item => item.Id == matrix.Id && item.Status == expectedStatus)
             .ExecuteUpdateAsync(
-                setters => setters.SetProperty(item => item.Status, matrix.Status),
+                setters => setters
+                    .SetProperty(item => item.Status, matrix.Status)
+                    .SetProperty(item => item.RejectComment, matrix.RejectComment)
+                    .SetProperty(item => item.RejectedByUserId, matrix.RejectedByUserId)
+                    .SetProperty(item => item.RejectedAt, matrix.RejectedAt),
                 cancellationToken);
 
         if (affected != 1)
@@ -165,9 +169,16 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db)
             return false;
         }
 
-        var status = Db.Entry(matrix).Property(item => item.Status);
-        status.OriginalValue = matrix.Status;
-        status.IsModified = false;
+        // The columns are already written; stop EF from writing them again.
+        var entry = Db.Entry(matrix);
+        entry.Property(item => item.Status).OriginalValue = matrix.Status;
+        entry.Property(item => item.RejectComment).OriginalValue = matrix.RejectComment;
+        entry.Property(item => item.RejectedByUserId).OriginalValue = matrix.RejectedByUserId;
+        entry.Property(item => item.RejectedAt).OriginalValue = matrix.RejectedAt;
+        entry.Property(item => item.Status).IsModified = false;
+        entry.Property(item => item.RejectComment).IsModified = false;
+        entry.Property(item => item.RejectedByUserId).IsModified = false;
+        entry.Property(item => item.RejectedAt).IsModified = false;
         return true;
     }
 

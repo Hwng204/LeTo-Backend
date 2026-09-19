@@ -2,6 +2,7 @@ using Application.DTOs;
 using Application.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace WebAPI.Controllers;
 
@@ -71,9 +72,12 @@ public sealed class MatricesController(
     public Task<MatrixResponse> Submit(ulong matrixId, CancellationToken cancellationToken) =>
         service.SubmitAsync(matrixId, cancellationToken);
 
-    [HttpPost("{matrixId}/withdraw")]
-    public Task<MatrixResponse> Withdraw(ulong matrixId, CancellationToken cancellationToken) =>
-        service.WithdrawAsync(matrixId, cancellationToken);
+    [HttpPost("{matrixId}/reject")]
+    public Task<MatrixResponse> Reject(
+        ulong matrixId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RejectMatrixRequest? request,
+        CancellationToken cancellationToken) =>
+        service.RejectAsync(matrixId, request, cancellationToken);
 
     [HttpPost("{matrixId}/approve")]
     public Task<MatrixResponse> Approve(ulong matrixId, CancellationToken cancellationToken) =>

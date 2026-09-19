@@ -152,13 +152,22 @@ public sealed class MatrixApplicationService(
             cancellationToken);
     }
 
-    public Task<MatrixResponse> WithdrawAsync(
+    public Task<MatrixResponse> RejectAsync(
         ulong matrixId,
+        RejectMatrixRequest? request,
         CancellationToken cancellationToken)
     {
+        var comment = request?.Comment;
+        if (comment is not null && comment.Trim().Length > 1000)
+        {
+            throw new MatrixApplicationException(
+                "InvalidRequest",
+                "Nhận xét từ chối tối đa 1000 ký tự.");
+        }
+
         return TransitionAsync(
             matrixId,
-            (matrix, actor) => matrix.Withdraw(actor),
+            (matrix, actor) => matrix.Reject(actor, comment, DateTime.UtcNow),
             MatrixTaskStatusCodes.Assigned,
             cancellationToken);
     }

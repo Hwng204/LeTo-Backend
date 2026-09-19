@@ -98,7 +98,10 @@ public static class MatrixMappingExtensions
             details,
             matrix.TotalQuestions,
             matrix.TotalScore,
-            AllowedActions(matrix, actor));
+            AllowedActions(matrix, actor),
+            matrix.RejectComment,
+            matrix.RejectedAt,
+            matrix.RejectedByUserId);
     }
 
     private static IReadOnlyList<string> AllowedActions(
@@ -134,14 +137,10 @@ public static class MatrixMappingExtensions
         }
         else if (matrix.Status == MatrixStatusCodes.Submitted)
         {
-            if (actor.Role == MatrixActorRole.TeamLead)
-            {
-                actions.Add("Withdraw");
-            }
-
             if (actor.Role == MatrixActorRole.Pht)
             {
                 actions.Add("Approve");
+                actions.Add("Reject");
             }
         }
         else if (matrix.Status == MatrixStatusCodes.Approved)

@@ -31,10 +31,15 @@ public sealed record MatrixResponse(
     IReadOnlyList<MatrixDetailResponse> Details,
     uint TotalQuestions,
     decimal TotalScore,
-    IReadOnlyList<string> AllowedActions)
+    IReadOnlyList<string> AllowedActions,
+    string? RejectComment = null,
+    DateTime? RejectedAt = null,
+    ulong? RejectedByUserId = null)
 {
     public string StatusLabel => Domain.Entities.QuestionBank.MatrixStatusCodes.Label(Status);
 }
 
 
 public sealed record MatrixExportFile(string FileName, byte[] Content);
+
+public sealed record RejectMatrixRequest(string? Comment);
