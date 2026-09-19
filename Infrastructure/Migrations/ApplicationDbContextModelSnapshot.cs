@@ -86,6 +86,18 @@ namespace Infrastructure.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
+                    b.Property<string>("ActiveProvinceCode")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)")
+                        .HasColumnName("active_province_code")
+                        .HasComputedColumnSql("CASE WHEN status = 'ACTIVE' THEN province_code ELSE NULL END", true);
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("code");
+
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
@@ -96,6 +108,11 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ProvinceCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)")
+                        .HasColumnName("province_code");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date")
                         .HasColumnName("start_date");
@@ -105,18 +122,35 @@ namespace Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
                         .HasColumnType("varchar(32)")
-                        .HasDefaultValue("ACTIVE")
+                        .HasDefaultValue("DRAFT")
                         .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasDefaultValue(1u)
+                        .HasColumnName("version");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("ActiveProvinceCode")
                         .IsUnique()
-                        .HasDatabaseName("uq_academic_years_name");
+                        .HasDatabaseName("uq_academic_years_active_province");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uq_academic_years_code");
+
+                    b.HasIndex("ProvinceCode", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("uq_academic_years_province_name");
 
                     b.ToTable("academic_years", null, t =>
                         {
-                            t.HasCheckConstraint("ck_academic_years_dates", "end_date >= start_date");
+                            t.HasCheckConstraint("ck_academic_years_dates", "end_date > start_date");
+
+                            t.HasCheckConstraint("ck_academic_years_status", "status IN ('DRAFT', 'ACTIVE', 'CLOSED')");
                         });
                 });
 
@@ -165,7 +199,7 @@ namespace Infrastructure.Migrations
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("academic_year_id");
 
-                    b.Property<DateOnly>("EndDate")
+                    b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date")
                         .HasColumnName("end_date");
 
@@ -175,19 +209,42 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("name");
 
-                    b.Property<DateOnly>("StartDate")
+                    b.Property<byte>("Order")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("semester_order");
+
+                    b.Property<DateOnly?>("StartDate")
                         .HasColumnType("date")
                         .HasColumnName("start_date");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasDefaultValue("PLANNED")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasDefaultValue(1u)
+                        .HasColumnName("version");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("AcademicYearId", "Name")
+                    b.HasIndex("AcademicYearId", "Order")
                         .IsUnique()
-                        .HasDatabaseName("uq_semesters_year_name");
+                        .HasDatabaseName("uq_semesters_year_order");
 
                     b.ToTable("semesters", null, t =>
                         {
-                            t.HasCheckConstraint("ck_semesters_dates", "end_date >= start_date");
+                            t.HasCheckConstraint("ck_semesters_dates", "(start_date IS NULL AND end_date IS NULL) OR end_date > start_date");
+
+                            t.HasCheckConstraint("ck_semesters_order", "semester_order IN (1, 2)");
+
+                            t.HasCheckConstraint("ck_semesters_status", "status IN ('PLANNED', 'ACTIVE', 'CLOSED')");
                         });
                 });
 
@@ -1555,6 +1612,49 @@ namespace Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Domain.Entities.Organization.Province", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("DivisionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("division_type");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTimeOffset>("LastSyncedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("source");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_provinces_name");
+
+                    b.ToTable("provinces", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Organization.Room", b =>
                 {
                     b.Property<ulong>("Id")
@@ -1622,6 +1722,11 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ProvinceCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)")
+                        .HasColumnName("province_code");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1635,6 +1740,9 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("uq_schools_code");
+
+                    b.HasIndex("ProvinceCode")
+                        .HasDatabaseName("ix_schools_province_code");
 
                     b.ToTable("schools", (string)null);
                 });
@@ -2421,6 +2529,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Textbook");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Academic.AcademicYear", b =>
+                {
+                    b.HasOne("Domain.Entities.Organization.Province", "Province")
+                        .WithMany("AcademicYears")
+                        .HasForeignKey("ProvinceCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_academic_years_province");
+
+                    b.Navigation("Province");
+                });
+
             modelBuilder.Entity("Domain.Entities.Academic.Semester", b =>
                 {
                     b.HasOne("Domain.Entities.Academic.AcademicYear", "AcademicYear")
@@ -3000,6 +3119,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("SchoolBranch");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Organization.School", b =>
+                {
+                    b.HasOne("Domain.Entities.Organization.Province", "Province")
+                        .WithMany("Schools")
+                        .HasForeignKey("ProvinceCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_schools_province");
+
+                    b.Navigation("Province");
+                });
+
             modelBuilder.Entity("Domain.Entities.Organization.SchoolBranch", b =>
                 {
                     b.HasOne("Domain.Entities.Organization.School", "School")
@@ -3468,6 +3598,13 @@ namespace Infrastructure.Migrations
                     b.Navigation("Notifications");
 
                     b.Navigation("Targets");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Organization.Province", b =>
+                {
+                    b.Navigation("AcademicYears");
+
+                    b.Navigation("Schools");
                 });
 
             modelBuilder.Entity("Domain.Entities.Organization.School", b =>

@@ -66,8 +66,8 @@ public sealed record MatrixSemesterOption(
     ulong Id,
     ulong AcademicYearId,
     string Name,
-    DateOnly StartDate,
-    DateOnly EndDate);
+    DateOnly? StartDate,
+    DateOnly? EndDate);
 
 public sealed record MatrixLessonOption(
     ulong Id,

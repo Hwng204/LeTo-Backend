@@ -44,7 +44,7 @@ public sealed class UserAuthenticationService(
         }
 
         var roleCodes = user.UserRoles
-            .Select(item => item.Role.Code.Trim().ToUpperInvariant())
+            .Select(item => item.Role.Code.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 

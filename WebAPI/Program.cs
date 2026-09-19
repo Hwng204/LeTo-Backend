@@ -3,6 +3,7 @@ using Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using WebAPI.Errors;
+using WebAPI.ExceptionHandling;
 using WebAPI.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,14 +54,24 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddMatrixIdentity();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("OperationalAdmin", policy =>
+        policy.RequireAuthenticatedUser().RequireAssertion(context =>
+            context.User.IsInRole("OperationalAdmin") ||
+            context.User.HasClaim("permission", "academic_calendar.manage")));
+});
 builder.Services.AddProblemDetails();
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
-    .WithOrigins(allowedOrigins is { Length: > 0 } ? allowedOrigins : ["http://localhost:5173"])
+    .WithOrigins(allowedOrigins is { Length: > 0 }
+        ? allowedOrigins
+        : ["http://localhost:5173", "http://localhost:3000"])
     .AllowAnyHeader()
     .AllowAnyMethod()
     .WithExposedHeaders("Content-Disposition")));
 builder.Services.AddExceptionHandler<MatrixExceptionHandler>();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 var app = builder.Build();
 
@@ -78,3 +89,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program;

@@ -8,6 +8,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IAcademicYearService, AcademicYearService>();
+        services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
+        services.AddScoped<IProvinceSyncService, ProvinceSyncService>();
         services.AddScoped<IMatrixApplicationService, MatrixApplicationService>();
         services.AddScoped<IMatrixTaskApplicationService, MatrixTaskApplicationService>();
 

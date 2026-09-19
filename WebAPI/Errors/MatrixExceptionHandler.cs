@@ -14,6 +14,11 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
         CancellationToken cancellationToken)
     {
         var result = Map(exception);
+        if (result is null)
+        {
+            return false;
+        }
+
         httpContext.Response.StatusCode = result.StatusCode;
         httpContext.Response.ContentType = "application/problem+json";
 
@@ -30,7 +35,7 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
         return true;
     }
 
-    private static ErrorResult Map(Exception exception)
+    private static ErrorResult? Map(Exception exception)
     {
         if (exception is UnauthorizedAccessException)
         {
@@ -57,11 +62,7 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
             return new ErrorResult(400, "Yêu cầu không hợp lệ", "Không thể xử lý yêu cầu.", "BadRequest");
         }
 
-        return new ErrorResult(
-            500,
-            "Lỗi hệ thống",
-            "Đã xảy ra lỗi không mong muốn.",
-            "InternalServerError");
+        return null;
     }
 
     private static ErrorResult FromCode(string code, string message, int defaultStatus)

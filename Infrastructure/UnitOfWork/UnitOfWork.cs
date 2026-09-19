@@ -9,10 +9,14 @@ namespace Infrastructure.UnitOfWork;
 
 public class UnitOfWork(
     ApplicationDbContext db,
+    IAcademicYearRepository academicYears,
+    IProvinceRepository provinces,
     IMatrixRepository matrices,
     IMatrixTaskRepository matrixTasks,
     IMatrixReferenceRepository matrixReferences) : IUnitOfWork
 {
+    public IAcademicYearRepository AcademicYears { get; } = academicYears;
+    public IProvinceRepository Provinces { get; } = provinces;
     public IMatrixRepository Matrices { get; } = matrices;
     public IMatrixTaskRepository MatrixTasks { get; } = matrixTasks;
     public IMatrixReferenceRepository MatrixReferences { get; } = matrixReferences;
@@ -66,10 +70,15 @@ public class UnitOfWork(
             // Preserve the original operation exception.
         }
     }
-
     private static bool IsDuplicateKey(DbUpdateException exception)
     {
-        return exception.GetBaseException() is MySqlException { Number: 1062 };
+        if (exception.GetBaseException() is not MySqlException { Number: 1062 } mysqlException)
+        {
+            return false;
+        }
+
+        return mysqlException.Message.Contains("uq_exam_matrices_task", StringComparison.OrdinalIgnoreCase) ||
+            mysqlException.Message.Contains("uq_matrix_details_cell", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetDuplicateCode(DbUpdateException exception)
@@ -79,6 +88,6 @@ public class UnitOfWork(
             ? "TaskAlreadyHasMatrix"
             : message.Contains("uq_matrix_details_cell", StringComparison.OrdinalIgnoreCase)
                 ? "DuplicateDetail"
-                : "PersistenceConflict";
+                : throw new InvalidOperationException("Unexpected non-matrix duplicate key.");
     }
 }
