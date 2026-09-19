@@ -11,7 +11,7 @@ public sealed class MatrixDetailConfiguration : IEntityTypeConfiguration<MatrixD
         builder.ToTable("matrix_details", table =>
         {
             table.HasCheckConstraint("ck_matrix_details_count", "question_count > 0");
-            table.HasCheckConstraint("ck_matrix_details_score", "allocated_score >= 0");
+            table.HasCheckConstraint("ck_matrix_details_score", "allocated_score > 0");
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasColumnName("id").HasColumnType("bigint unsigned").ValueGeneratedOnAdd();

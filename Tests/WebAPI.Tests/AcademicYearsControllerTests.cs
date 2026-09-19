@@ -70,9 +70,15 @@ public sealed class AcademicYearsControllerTests
     public async Task Endpoint_Returns401WhenNoJwtIsProvided()
     {
         await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting(
-                "ConnectionStrings:DefaultConnection",
-                "Server=127.0.0.1;Database=unused;User=unused;Password=unused;"));
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting(
+                    "ConnectionStrings:DefaultConnection",
+                    "Server=127.0.0.1;Database=unused;User=unused;Password=unused;");
+                builder.UseSetting(
+                    "Jwt:SigningKey",
+                    "academic-year-test-signing-key-at-least-32-chars");
+            });
         using var client = factory.CreateClient();
         client.BaseAddress = new Uri("https://localhost");
 
@@ -85,9 +91,15 @@ public sealed class AcademicYearsControllerTests
     public async Task StudentsEndpoint_ResolvesWithoutAnUnusedStudentServiceRegistration()
     {
         await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting(
-                "ConnectionStrings:DefaultConnection",
-                "Server=127.0.0.1;Database=unused;User=unused;Password=unused;"));
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting(
+                    "ConnectionStrings:DefaultConnection",
+                    "Server=127.0.0.1;Database=unused;User=unused;Password=unused;");
+                builder.UseSetting(
+                    "Jwt:SigningKey",
+                    "academic-year-test-signing-key-at-least-32-chars");
+            });
         using var client = factory.CreateClient();
         client.BaseAddress = new Uri("https://localhost");
 

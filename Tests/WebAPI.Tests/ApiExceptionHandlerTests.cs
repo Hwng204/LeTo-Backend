@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using WebAPI.Errors;
 using WebAPI.ExceptionHandling;
 using Xunit;
 
@@ -9,6 +10,17 @@ namespace WebAPI.Tests;
 
 public sealed class ApiExceptionHandlerTests
 {
+    [Fact]
+    public async Task MatrixHandler_ReturnsFalseForUnknownExceptions()
+    {
+        var handled = await new MatrixExceptionHandler().TryHandleAsync(
+            new DefaultHttpContext(),
+            new InvalidOperationException("not a matrix error"),
+            CancellationToken.None);
+
+        Assert.False(handled);
+    }
+
     [Fact]
     public async Task TryHandleAsync_ReturnsGenericApiResponseWithoutExceptionDetails()
     {

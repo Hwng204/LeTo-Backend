@@ -70,6 +70,12 @@ public sealed class ProvinceSyncServiceTests
         public IAcademicYearRepository AcademicYears =>
             throw new InvalidOperationException("Academic-year repository is not used by these tests.");
         public IProvinceRepository Provinces => this;
+        public IMatrixRepository Matrices =>
+            throw new InvalidOperationException("Matrix repository is not used by these tests.");
+        public IMatrixTaskRepository MatrixTasks =>
+            throw new InvalidOperationException("Matrix task repository is not used by these tests.");
+        public IMatrixReferenceRepository MatrixReferences =>
+            throw new InvalidOperationException("Matrix reference repository is not used by these tests.");
 
         public IReadOnlyList<ProvinceCatalogItem>? SynchronizedProvinces { get; private set; }
 

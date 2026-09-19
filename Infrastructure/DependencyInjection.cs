@@ -1,7 +1,9 @@
 using Infrastructure.Context;
 using Infrastructure.External.Provinces;
+using Infrastructure.Exports;
 using Infrastructure.Repositories.Implement;
 using Infrastructure.Repositories.Interface;
+using Infrastructure.Security;
 using Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,9 +33,14 @@ public static class DependencyInjection
 
         services.AddScoped<IAcademicYearRepository, AcademicYearRepository>();
         services.AddScoped<IProvinceRepository, ProvinceRepository>();
+        services.AddScoped<IMatrixRepository, ExamMatrixRepository>();
+        services.AddScoped<IMatrixTaskRepository, MatrixTaskRepository>();
+        services.AddScoped<IMatrixReferenceRepository, MatrixReferenceRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
         services.AddSingleton<IProvinceProvider>(_ => CreateProvinceProvider(configuration));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IMatrixRoleCatalog, ConfiguredMatrixRoleCatalog>();
+        services.AddSingleton<IMatrixWorkbookExporter, ClosedXmlMatrixWorkbookExporter>();
 
         return services;
     }

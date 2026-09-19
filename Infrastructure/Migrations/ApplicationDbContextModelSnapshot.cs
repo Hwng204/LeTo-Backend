@@ -1865,6 +1865,19 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("RejectComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("reject_comment");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<ulong?>("RejectedByUserId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("rejected_by_user_id");
+
                     b.Property<ulong?>("SemesterId")
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("semester_id");
@@ -1875,7 +1888,7 @@ namespace Infrastructure.Migrations
                         .HasColumnType("varchar(32)")
                         .HasColumnName("status");
 
-                    b.Property<ulong>("TaskId")
+                    b.Property<ulong?>("TaskId")
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("task_id");
 
@@ -1883,6 +1896,9 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("AcademicContextId")
                         .HasDatabaseName("idx_exam_matrices_context");
+
+                    b.HasIndex("RejectedByUserId")
+                        .HasDatabaseName("idx_exam_matrices_rejecter");
 
                     b.HasIndex("SemesterId")
                         .HasDatabaseName("idx_exam_matrices_semester");
@@ -2123,7 +2139,7 @@ namespace Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_matrix_details_count", "question_count > 0");
 
-                            t.HasCheckConstraint("ck_matrix_details_score", "allocated_score >= 0");
+                            t.HasCheckConstraint("ck_matrix_details_score", "allocated_score > 0");
                         });
                 });
 
@@ -2385,6 +2401,10 @@ namespace Infrastructure.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
+                    b.Property<ulong?>("AcademicContextId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("academic_context_id");
+
                     b.Property<ulong>("AssignedToUserId")
                         .HasColumnType("bigint unsigned")
                         .HasColumnName("assigned_to_user_id");
@@ -2406,6 +2426,10 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("DueAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("due_at");
+
+                    b.Property<ulong?>("SemesterId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("semester_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2429,8 +2453,14 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AcademicContextId")
+                        .HasDatabaseName("idx_tasks_context");
+
                     b.HasIndex("CreatedByUserId")
                         .HasDatabaseName("idx_tasks_creator");
+
+                    b.HasIndex("SemesterId")
+                        .HasDatabaseName("idx_tasks_semester");
 
                     b.HasIndex("UpdatedByUserId")
                         .HasDatabaseName("idx_tasks_updater");
@@ -3151,6 +3181,12 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_exam_matrices_context");
 
+                    b.HasOne("Domain.Entities.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("RejectedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_exam_matrices_rejecter");
+
                     b.HasOne("Domain.Entities.Academic.Semester", "Semester")
                         .WithMany()
                         .HasForeignKey("SemesterId")
@@ -3161,7 +3197,6 @@ namespace Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_exam_matrices_task");
 
                     b.Navigation("AcademicContext");
@@ -3412,6 +3447,12 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.QuestionBank.WorkTask", b =>
                 {
+                    b.HasOne("Domain.Entities.Academic.AcademicContext", null)
+                        .WithMany()
+                        .HasForeignKey("AcademicContextId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_context");
+
                     b.HasOne("Domain.Entities.Identity.User", "AssignedToUser")
                         .WithMany()
                         .HasForeignKey("AssignedToUserId")
@@ -3425,6 +3466,12 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_tasks_creator");
+
+                    b.HasOne("Domain.Entities.Academic.Semester", null)
+                        .WithMany()
+                        .HasForeignKey("SemesterId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_tasks_semester");
 
                     b.HasOne("Domain.Entities.Identity.User", "UpdatedByUser")
                         .WithMany()

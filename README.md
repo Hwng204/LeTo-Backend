@@ -136,7 +136,13 @@ Nếu máy chưa tin cậy HTTPS development certificate:
 dotnet dev-certs https --trust
 ```
 
-## 8. Quy tắc đồng bộ database của đội
+## 8. Module Ma trận đề thi
+
+API ma trận, đăng nhập JWT và quy trình nghiệp vụ: xem [MATRIX.md](MATRIX.md).
+
+JWT cần `Jwt:SigningKey` tối thiểu 32 ký tự. Cấu hình bằng user secrets hoặc biến môi trường, không commit khóa thật.
+
+## 9. Quy tắc đồng bộ database của đội
 
 1. Thay đổi entity và EF configuration.
 2. Tạo migration có tên rõ nghĩa.

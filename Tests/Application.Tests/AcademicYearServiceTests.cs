@@ -318,6 +318,12 @@ public sealed class AcademicYearServiceTests
         public IAcademicYearRepository AcademicYears => this;
         public IProvinceRepository Provinces =>
             throw new InvalidOperationException("Province repository is not used by these tests.");
+        public IMatrixRepository Matrices =>
+            throw new InvalidOperationException("Matrix repository is not used by these tests.");
+        public IMatrixTaskRepository MatrixTasks =>
+            throw new InvalidOperationException("Matrix task repository is not used by these tests.");
+        public IMatrixReferenceRepository MatrixReferences =>
+            throw new InvalidOperationException("Matrix reference repository is not used by these tests.");
 
         public AcademicYearCreateOutcome CreateOutcome { get; init; } =
             AcademicYearCreateOutcome.Created;

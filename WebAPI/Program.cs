@@ -1,37 +1,59 @@
 using Application;
 using Infrastructure;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using WebAPI.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Models;
+using WebAPI.Errors;
 using WebAPI.ExceptionHandling;
+using WebAPI.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var problem = new ValidationProblemDetails(context.ModelState)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Request validation failed",
+            Type = "https://httpstatuses.com/400"
+        };
+        problem.Extensions["code"] = "ValidationError";
+        return new BadRequestObjectResult(problem)
+        {
+            ContentTypes = { "application/problem+json" }
+        };
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter a valid JWT bearer token."
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        }] = Array.Empty<string>()
+    });
+});
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-builder.Services.AddProblemDetails();
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod());
-});
-
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddAuthentication("DevBearer")
-        .AddScheme<AuthenticationSchemeOptions, DevAuthenticationHandler>("DevBearer", _ => { });
-}
-else
-{
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
-}
-
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddMatrixIdentity();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("OperationalAdmin", policy =>
@@ -39,6 +61,17 @@ builder.Services.AddAuthorization(options =>
             context.User.IsInRole("OperationalAdmin") ||
             context.User.HasClaim("permission", "academic_calendar.manage")));
 });
+builder.Services.AddProblemDetails();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
+    .WithOrigins(allowedOrigins is { Length: > 0 }
+        ? allowedOrigins
+        : ["http://localhost:5173", "http://localhost:3000"])
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .WithExposedHeaders("Content-Disposition")));
+builder.Services.AddExceptionHandler<MatrixExceptionHandler>();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 var app = builder.Build();
 
@@ -49,7 +82,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+app.UseCors();
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
