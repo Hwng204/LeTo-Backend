@@ -4,7 +4,7 @@ using Domain.Entities.QuestionBank;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace WebAPI.Errors;
+namespace WebAPI.ExceptionHandling;
 
 public sealed class MatrixExceptionHandler : IExceptionHandler
 {

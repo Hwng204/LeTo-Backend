@@ -2,7 +2,6 @@ using System.Text.Json;
 using Application.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
-using WebAPI.Errors;
 using WebAPI.ExceptionHandling;
 using Xunit;
 
