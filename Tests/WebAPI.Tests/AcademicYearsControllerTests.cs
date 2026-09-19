@@ -1,7 +1,7 @@
 using System.Net;
 using Application.Common;
 using Application.DTOs;
-using Application.Services.Interfaces;
+using Application.Services.Interface;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

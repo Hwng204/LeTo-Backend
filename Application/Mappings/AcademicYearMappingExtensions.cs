@@ -1,10 +1,19 @@
 using Application.DTOs;
 using Domain.Entities.Academic;
+using Infrastructure.Repositories.Interface;
 
 namespace Application.Mappings;
 
 public static class AcademicYearMappingExtensions
 {
+    public static AcademicYearListFilter ToFilter(this AcademicYearListQuery query) =>
+        new(
+            query.ProvinceCode,
+            query.Status,
+            query.Search,
+            query.Page,
+            query.PageSize);
+
     public static AcademicYearDetailDto ToDetailDto(this AcademicYear academicYear) =>
         new(
             academicYear.Id,

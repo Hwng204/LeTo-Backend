@@ -1,6 +1,6 @@
 using Application.Common;
 using Application.DTOs;
-using Application.Services.Interfaces;
+using Application.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

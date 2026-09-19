@@ -1,6 +1,8 @@
 using Application.DTOs;
-using Application.Interfaces;
-using Application.Services.Implementations;
+using Application.Services.Implement;
+using Infrastructure.External.Provinces;
+using Infrastructure.Repositories.Interface;
+using Infrastructure.UnitOfWork;
 using Xunit;
 
 namespace Application.Tests;
@@ -28,19 +30,42 @@ public sealed class ProvinceCatalogServiceTests
     }
 
     private sealed class FakeProvinceRepository(IReadOnlyList<ProvinceOption> options)
-        : IProvinceRepository
+        : IProvinceRepository, IUnitOfWork
     {
-        public Task<IReadOnlyList<ProvinceOption>> ListActiveAsync(
-            CancellationToken cancellationToken) => Task.FromResult(options);
+        public IAcademicYearRepository AcademicYears =>
+            throw new InvalidOperationException("Academic-year repository is not used by these tests.");
+        public IProvinceRepository Provinces => this;
+
+        public Task<IReadOnlyList<ProvinceOptionRow>> ListActiveAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ProvinceOptionRow>>(options
+                .Select(option => new ProvinceOptionRow(
+                    option.Code,
+                    option.Name,
+                    option.HasSchools,
+                    option.ActiveSchoolCount))
+                .ToArray());
 
         public Task<IReadOnlySet<string>> ListActiveCodesAsync(
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
 
         public Task SynchronizeAsync(
-            IReadOnlyList<ProvinceCatalogItem> provinces,
+            IReadOnlyList<ProvinceCatalogRecord> provinces,
             string source,
             DateTimeOffset synchronizedAt,
             CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<int> CompleteAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(1);
+
+        public Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+
+        public void Dispose()
+        {
+        }
     }
 }

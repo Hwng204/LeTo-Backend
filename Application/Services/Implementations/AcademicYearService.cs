@@ -1,13 +1,14 @@
 using Application.Common;
 using Application.DTOs;
-using Application.Interfaces;
 using Application.Mappings;
-using Application.Services.Interfaces;
+using Application.Services.Interface;
 using Domain.Entities.Academic;
+using Infrastructure.Repositories.Interface;
+using Infrastructure.UnitOfWork;
 
-namespace Application.Services.Implementations;
+namespace Application.Services.Implement;
 
-public sealed class AcademicYearService(IAcademicYearRepository repository) : IAcademicYearService
+public sealed class AcademicYearService(IUnitOfWork uow) : IAcademicYearService
 {
     public async Task<ServiceResult<AcademicYearListItem>> CreateAsync(
         CreateAcademicYearRequest request,
@@ -24,7 +25,6 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
 
         var provinceCode = request.ProvinceCode.Trim();
         var name = request.Name.Trim();
-
         var academicYear = new AcademicYear
         {
             ProvinceCode = provinceCode,
@@ -40,7 +40,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         };
         academicYear.AssignCode($"{provinceCode}-{name}");
 
-        var createOutcome = await repository.TryAddAsync(academicYear, cancellationToken);
+        var createOutcome = await uow.AcademicYears.TryAddAsync(academicYear, cancellationToken);
         if (createOutcome == AcademicYearCreateOutcome.ProvinceNotFound)
         {
             return ServiceResult<AcademicYearListItem>.Failure(
@@ -67,7 +67,9 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
             ProvinceCode = query.ProvinceCode.Trim(),
             Search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim()
         };
-        var (items, totalCount) = await repository.ListAsync(normalizedQuery, cancellationToken);
+        var (items, totalCount) = await uow.AcademicYears.ListAsync(
+            normalizedQuery.ToFilter(),
+            cancellationToken);
 
         return new AcademicYearPage(
             items.Select(year => year.ToListItem()).ToArray(),
@@ -80,15 +82,12 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         ulong id,
         CancellationToken cancellationToken)
     {
-        var year = await repository.GetByIdWithSemestersAsync(id, cancellationToken);
-        if (year is null)
-        {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(id, cancellationToken);
+        return year is null
+            ? ServiceResult<AcademicYearDetailDto>.Failure(
                 "ACADEMIC_YEAR_NOT_FOUND",
-                "Không tìm thấy năm học.");
-        }
-
-        return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
+                "Không tìm thấy năm học.")
+            : ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
     public async Task<ServiceResult<AcademicYearDetailDto>> UpdateAsync(
@@ -105,7 +104,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 validation.Errors);
         }
 
-        var year = await repository.GetByIdWithSemestersAsync(id, cancellationToken);
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(id, cancellationToken);
         if (year is null)
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
@@ -113,33 +112,18 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        if (year.Status == "CLOSED")
+        try
         {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "ACADEMIC_YEAR_CLOSED",
-                "Năm học đã đóng không thể chỉnh sửa.");
+            year.EnsureCanUpdateSchedule(request.StartDate, request.EndDate);
         }
-
-        foreach (var sem in year.Semesters)
+        catch (AcademicCalendarDomainException exception)
         {
-            if (sem.StartDate.HasValue && sem.StartDate.Value < request.StartDate)
-            {
-                return ServiceResult<AcademicYearDetailDto>.Failure(
-                    "SEMESTER_OUT_OF_BOUNDS",
-                    $"Ngày bắt đầu năm học ({request.StartDate:dd/MM/yyyy}) không thể sau ngày bắt đầu của {sem.Name} ({sem.StartDate.Value:dd/MM/yyyy}).");
-            }
-            if (sem.EndDate.HasValue && sem.EndDate.Value > request.EndDate)
-            {
-                return ServiceResult<AcademicYearDetailDto>.Failure(
-                    "SEMESTER_OUT_OF_BOUNDS",
-                    $"Ngày kết thúc năm học ({request.EndDate:dd/MM/yyyy}) không thể trước ngày kết thúc của {sem.Name} ({sem.EndDate.Value:dd/MM/yyyy}).");
-            }
+            return DomainFailure<AcademicYearDetailDto>(exception);
         }
 
         var name = request.Name.Trim();
         var provinceCode = year.ProvinceCode ?? string.Empty;
-
-        if (await repository.HasConflictExceptCurrentAsync(
+        if (await uow.AcademicYears.HasConflictExceptCurrentAsync(
                 provinceCode,
                 year.Id,
                 name,
@@ -152,12 +136,8 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Năm học bị trùng tên hoặc chồng lấn thời gian với năm học khác trong cùng tỉnh.");
         }
 
-        year.Name = name;
-        year.StartDate = request.StartDate;
-        year.EndDate = request.EndDate;
-        year.Version++;
-
-        if (!await repository.UpdateAsync(year, cancellationToken))
+        year.UpdateSchedule(name, request.StartDate, request.EndDate);
+        if (!await uow.AcademicYears.UpdateAsync(year, cancellationToken))
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
                 "ACADEMIC_YEAR_CONFLICT",
@@ -171,7 +151,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         ulong id,
         CancellationToken cancellationToken)
     {
-        var year = await repository.GetByIdWithSemestersAsync(id, cancellationToken);
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(id, cancellationToken);
         if (year is null)
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
@@ -179,39 +159,28 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        if (year.Status == "ACTIVE")
+        try
         {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "ACADEMIC_YEAR_ALREADY_ACTIVE",
-                "Năm học này đang ở trạng thái áp dụng.");
+            year.EnsureCanActivate();
         }
-
-        if (year.Status == "CLOSED")
+        catch (AcademicCalendarDomainException exception)
         {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "ACADEMIC_YEAR_CLOSED",
-                "Năm học đã đóng không thể kích hoạt lại.");
-        }
-
-        if (year.Semesters.Count != 2)
-        {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "INCOMPLETE_TERMS",
-                "Năm học cần có đầy đủ 2 học kỳ trước khi kích hoạt.");
+            return DomainFailure<AcademicYearDetailDto>(exception);
         }
 
         var provinceCode = year.ProvinceCode ?? string.Empty;
-        if (await repository.HasActiveYearInProvinceAsync(provinceCode, year.Id, cancellationToken))
+        if (await uow.AcademicYears.HasActiveYearInProvinceAsync(
+                provinceCode,
+                year.Id,
+                cancellationToken))
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
                 "ACTIVE_YEAR_CONFLICT",
                 "Tỉnh này đã có một năm học khác đang ở trạng thái áp dụng.");
         }
 
-        year.Status = "ACTIVE";
-        year.Version++;
-
-        if (!await repository.UpdateAsync(year, cancellationToken))
+        year.Activate();
+        if (!await uow.AcademicYears.UpdateAsync(year, cancellationToken))
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
                 "ACTIVE_YEAR_CONFLICT",
@@ -225,7 +194,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         ulong id,
         CancellationToken cancellationToken)
     {
-        var year = await repository.GetByIdWithSemestersAsync(id, cancellationToken);
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(id, cancellationToken);
         if (year is null)
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
@@ -233,26 +202,16 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        if (year.Status == "CLOSED")
+        try
         {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "ACADEMIC_YEAR_ALREADY_CLOSED",
-                "Năm học đã đóng từ trước.");
+            year.Close();
+        }
+        catch (AcademicCalendarDomainException exception)
+        {
+            return DomainFailure<AcademicYearDetailDto>(exception);
         }
 
-        year.Status = "CLOSED";
-        year.Version++;
-
-        foreach (var semester in year.Semesters)
-        {
-            if (semester.Status != "CLOSED")
-            {
-                semester.Status = "CLOSED";
-                semester.Version++;
-            }
-        }
-
-        await repository.CommitAsync(cancellationToken);
+        await uow.CompleteAsync(cancellationToken);
         return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
@@ -261,7 +220,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         ConfigureTermsRequest request,
         CancellationToken cancellationToken)
     {
-        var year = await repository.GetByIdWithSemestersAsync(id, cancellationToken);
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(id, cancellationToken);
         if (year is null)
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
@@ -269,14 +228,19 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        if (year.Status == "CLOSED")
+        try
         {
-            return ServiceResult<AcademicYearDetailDto>.Failure(
-                "ACADEMIC_YEAR_CLOSED",
-                "Năm học đã đóng không thể cấu hình học kỳ.");
+            year.EnsureCanConfigureTerms();
+        }
+        catch (AcademicCalendarDomainException exception)
+        {
+            return DomainFailure<AcademicYearDetailDto>(exception);
         }
 
-        var validation = AcademicYearValidator.ValidateConfigureTerms(request, year.StartDate, year.EndDate);
+        var validation = AcademicYearValidator.ValidateConfigureTerms(
+            request,
+            year.StartDate,
+            year.EndDate);
         if (!validation.IsValid)
         {
             return ServiceResult<AcademicYearDetailDto>.Failure(
@@ -285,26 +249,28 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 validation.Errors);
         }
 
-        foreach (var item in request.Terms)
+        try
         {
-            var term = year.Semesters.FirstOrDefault(s => s.Order == item.Order);
-            if (term is not null)
+            foreach (var item in request.Terms)
             {
-                if (term.Status == "CLOSED")
-                {
-                    return ServiceResult<AcademicYearDetailDto>.Failure(
-                        "TERM_CLOSED",
-                        $"Học kỳ {item.Order} đã đóng không thể sửa.");
-                }
+                year.EnsureCanConfigureTerm(item.Order);
+            }
 
-                term.Name = item.Name.Trim();
-                term.StartDate = item.StartDate;
-                term.EndDate = item.EndDate;
-                term.Version++;
+            foreach (var item in request.Terms)
+            {
+                year.ConfigureTerm(
+                    item.Order,
+                    item.Name.Trim(),
+                    item.StartDate,
+                    item.EndDate);
             }
         }
+        catch (AcademicCalendarDomainException exception)
+        {
+            return DomainFailure<AcademicYearDetailDto>(exception);
+        }
 
-        await repository.CommitAsync(cancellationToken);
+        await uow.CompleteAsync(cancellationToken);
         return ServiceResult<AcademicYearDetailDto>.Success(year.ToDetailDto());
     }
 
@@ -313,7 +279,7 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
         ulong termId,
         CancellationToken cancellationToken)
     {
-        var year = await repository.GetByIdWithSemestersAsync(yearId, cancellationToken);
+        var year = await uow.AcademicYears.GetByIdWithSemestersAsync(yearId, cancellationToken);
         if (year is null)
         {
             return ServiceResult<SemesterDto>.Failure(
@@ -321,25 +287,20 @@ public sealed class AcademicYearService(IAcademicYearRepository repository) : IA
                 "Không tìm thấy năm học.");
         }
 
-        var term = year.Semesters.FirstOrDefault(s => s.Id == termId);
-        if (term is null)
+        Semester term;
+        try
         {
-            return ServiceResult<SemesterDto>.Failure(
-                "TERM_NOT_FOUND",
-                "Không tìm thấy học kỳ.");
+            term = year.CloseTerm(termId);
+        }
+        catch (AcademicCalendarDomainException exception)
+        {
+            return DomainFailure<SemesterDto>(exception);
         }
 
-        if (term.Status == "CLOSED")
-        {
-            return ServiceResult<SemesterDto>.Failure(
-                "TERM_ALREADY_CLOSED",
-                "Học kỳ đã đóng từ trước.");
-        }
-
-        term.Status = "CLOSED";
-        term.Version++;
-
-        await repository.CommitAsync(cancellationToken);
+        await uow.CompleteAsync(cancellationToken);
         return ServiceResult<SemesterDto>.Success(term.ToDto());
     }
+
+    private static ServiceResult<T> DomainFailure<T>(AcademicCalendarDomainException exception) =>
+        ServiceResult<T>.Failure(exception.Code, exception.Message);
 }

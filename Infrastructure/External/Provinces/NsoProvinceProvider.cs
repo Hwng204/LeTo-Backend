@@ -3,8 +3,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using Application.DTOs;
-using Application.Interfaces;
 
 namespace Infrastructure.External.Provinces;
 
@@ -20,7 +18,7 @@ public sealed partial class NsoProvinceProvider(
 
     public string Name => "NSO_DMDVHC";
 
-    public async Task<IReadOnlyList<ProvinceCatalogItem>> FetchAsync(
+    public async Task<IReadOnlyList<ProvinceCatalogRecord>> FetchAsync(
         DateOnly asOfDate,
         CancellationToken cancellationToken)
     {
@@ -100,19 +98,19 @@ public sealed partial class NsoProvinceProvider(
         return request;
     }
 
-    private static ProvinceCatalogItem ParseProvince(XElement row)
+    private static ProvinceCatalogRecord ParseProvince(XElement row)
     {
         string Value(string elementName) => row.Elements()
             .FirstOrDefault(element => element.Name.LocalName == elementName)?
             .Value.Trim() ?? string.Empty;
 
-        return new ProvinceCatalogItem(
+        return new ProvinceCatalogRecord(
             Value("MaTinh"),
             Value("TenTinh"),
             Value("LoaiHinh"));
     }
 
-    private void Validate(IReadOnlyList<ProvinceCatalogItem> provinces)
+    private void Validate(IReadOnlyList<ProvinceCatalogRecord> provinces)
     {
         if (provinces.Count < minimumExpectedCount || provinces.Count > MaximumExpectedCount)
         {

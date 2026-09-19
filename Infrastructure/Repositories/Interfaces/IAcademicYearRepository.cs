@@ -1,7 +1,6 @@
-using Application.DTOs;
 using Domain.Entities.Academic;
 
-namespace Application.Interfaces;
+namespace Infrastructure.Repositories.Interface;
 
 public enum AcademicYearCreateOutcome
 {
@@ -10,6 +9,13 @@ public enum AcademicYearCreateOutcome
     Conflict
 }
 
+public sealed record AcademicYearListFilter(
+    string ProvinceCode,
+    string? Status,
+    string? Search,
+    int Page,
+    int PageSize);
+
 public interface IAcademicYearRepository
 {
     Task<AcademicYearCreateOutcome> TryAddAsync(
@@ -17,7 +23,7 @@ public interface IAcademicYearRepository
         CancellationToken cancellationToken);
 
     Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-        AcademicYearListQuery query,
+        AcademicYearListFilter filter,
         CancellationToken cancellationToken);
 
     Task<AcademicYear?> GetByIdWithSemestersAsync(
@@ -41,6 +47,4 @@ public interface IAcademicYearRepository
         AcademicYear academicYear,
         CancellationToken cancellationToken);
 
-    /// <summary>Persists all pending changes tracked by this repository's unit of work.</summary>
-    Task CommitAsync(CancellationToken cancellationToken);
 }

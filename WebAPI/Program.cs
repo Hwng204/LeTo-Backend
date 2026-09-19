@@ -1,5 +1,4 @@
-using Application.Services.Implementations;
-using Application.Services.Interfaces;
+using Application;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,10 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
-builder.Services.AddScoped<IProvinceCatalogService, ProvinceCatalogService>();
-builder.Services.AddScoped<IProvinceSyncService, ProvinceSyncService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddCors(options =>
