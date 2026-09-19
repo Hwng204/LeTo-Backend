@@ -1,12 +1,13 @@
 using Application.DTOs;
-using Application.Interfaces;
-using Application.Services.Interfaces;
+using Application.Services.Interface;
+using Infrastructure.External.Provinces;
+using Infrastructure.UnitOfWork;
 
-namespace Application.Services.Implementations;
+namespace Application.Services.Implement;
 
 public sealed class ProvinceSyncService(
     IProvinceProvider provider,
-    IProvinceRepository repository,
+    IUnitOfWork uow,
     TimeProvider timeProvider) : IProvinceSyncService
 {
     private const double MaximumRemovalRatio = 0.25;
@@ -18,11 +19,11 @@ public sealed class ProvinceSyncService(
         var catalog = await provider.FetchAsync(
             DateOnly.FromDateTime(synchronizedAt.UtcDateTime),
             cancellationToken);
-        var activeCodes = await repository.ListActiveCodesAsync(cancellationToken);
+        var activeCodes = await uow.Provinces.ListActiveCodesAsync(cancellationToken);
 
         RejectSuspiciousRemovals(activeCodes, catalog);
 
-        await repository.SynchronizeAsync(
+        await uow.Provinces.SynchronizeAsync(
             catalog,
             provider.Name,
             synchronizedAt,
@@ -33,7 +34,7 @@ public sealed class ProvinceSyncService(
 
     private static void RejectSuspiciousRemovals(
         IReadOnlySet<string> activeCodes,
-        IReadOnlyList<ProvinceCatalogItem> catalog)
+        IReadOnlyList<ProvinceCatalogRecord> catalog)
     {
         if (activeCodes.Count == 0)
         {

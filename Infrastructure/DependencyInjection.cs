@@ -1,7 +1,8 @@
-using Application.Interfaces;
 using Infrastructure.Context;
 using Infrastructure.External.Provinces;
-using Infrastructure.Repositories.Implementations;
+using Infrastructure.Repositories.Implement;
+using Infrastructure.Repositories.Interface;
+using Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ public static class DependencyInjection
 
         services.AddScoped<IAcademicYearRepository, AcademicYearRepository>();
         services.AddScoped<IProvinceRepository, ProvinceRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
         services.AddSingleton<IProvinceProvider>(_ => CreateProvinceProvider(configuration));
         services.AddSingleton(TimeProvider.System);
 

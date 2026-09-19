@@ -1,6 +1,6 @@
 using Application.DTOs;
 
-namespace Application.Services.Interfaces;
+namespace Application.Services.Interface;
 
 public interface IProvinceSyncService
 {

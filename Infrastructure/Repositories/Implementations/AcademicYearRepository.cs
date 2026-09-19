@@ -1,11 +1,10 @@
-using Application.DTOs;
-using Application.Interfaces;
 using Domain.Entities.Academic;
 using Infrastructure.Context;
+using Infrastructure.Repositories.Interface;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 
-namespace Infrastructure.Repositories.Implementations;
+namespace Infrastructure.Repositories.Implement;
 
 public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcademicYearRepository
 {
@@ -56,29 +55,29 @@ public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcad
     }
 
     public async Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-        AcademicYearListQuery listQuery,
+        AcademicYearListFilter filter,
         CancellationToken cancellationToken)
     {
         var query = context.AcademicYears
             .AsNoTracking()
-            .Where(year => year.ProvinceCode == listQuery.ProvinceCode);
+            .Where(year => year.ProvinceCode == filter.ProvinceCode);
 
-        if (listQuery.Status is not null)
+        if (filter.Status is not null)
         {
-            query = query.Where(year => year.Status == listQuery.Status);
+            query = query.Where(year => year.Status == filter.Status);
         }
 
-        if (listQuery.Search is not null)
+        if (filter.Search is not null)
         {
-            query = query.Where(year => year.Name.Contains(listQuery.Search));
+            query = query.Where(year => year.Name.Contains(filter.Search));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(year => year.StartDate)
             .ThenByDescending(year => year.Id)
-            .Skip((listQuery.Page - 1) * listQuery.PageSize)
-            .Take(listQuery.PageSize)
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .ToArrayAsync(cancellationToken);
 
         return (items, totalCount);
@@ -135,6 +134,4 @@ public sealed class AcademicYearRepository(ApplicationDbContext context) : IAcad
         }
     }
 
-    public Task CommitAsync(CancellationToken cancellationToken) =>
-        context.SaveChangesAsync(cancellationToken);
 }

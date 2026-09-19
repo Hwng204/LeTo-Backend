@@ -1,7 +1,11 @@
 using Application.DTOs;
-using Application.Interfaces;
-using Application.Services.Implementations;
+using Application.Services.Implement;
+using Infrastructure.External.Provinces;
+using Infrastructure.Repositories.Interface;
+using Infrastructure.UnitOfWork;
 using Xunit;
+
+using ProvinceCatalogItem = Infrastructure.External.Provinces.ProvinceCatalogRecord;
 
 namespace Application.Tests;
 
@@ -60,13 +64,18 @@ public sealed class ProvinceSyncServiceTests
             CancellationToken cancellationToken) => Task.FromResult(provinces);
     }
 
-    private sealed class FakeRepository(IReadOnlySet<string> activeCodes) : IProvinceRepository
+    private sealed class FakeRepository(IReadOnlySet<string> activeCodes)
+        : IProvinceRepository, IUnitOfWork
     {
+        public IAcademicYearRepository AcademicYears =>
+            throw new InvalidOperationException("Academic-year repository is not used by these tests.");
+        public IProvinceRepository Provinces => this;
+
         public IReadOnlyList<ProvinceCatalogItem>? SynchronizedProvinces { get; private set; }
 
-        public Task<IReadOnlyList<ProvinceOption>> ListActiveAsync(
+        public Task<IReadOnlyList<ProvinceOptionRow>> ListActiveAsync(
             CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<ProvinceOption>>([]);
+            Task.FromResult<IReadOnlyList<ProvinceOptionRow>>([]);
 
         public Task<IReadOnlySet<string>> ListActiveCodesAsync(
             CancellationToken cancellationToken) => Task.FromResult(activeCodes);
@@ -79,6 +88,18 @@ public sealed class ProvinceSyncServiceTests
         {
             SynchronizedProvinces = provinces;
             return Task.CompletedTask;
+        }
+
+        public Task<int> CompleteAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(1);
+
+        public Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+
+        public void Dispose()
+        {
         }
     }
 

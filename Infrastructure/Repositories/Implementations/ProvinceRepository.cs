@@ -1,13 +1,13 @@
-using Application.DTOs;
-using Application.Interfaces;
 using Infrastructure.Context;
+using Infrastructure.External.Provinces;
+using Infrastructure.Repositories.Interface;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Repositories.Implementations;
+namespace Infrastructure.Repositories.Implement;
 
 public sealed class ProvinceRepository(ApplicationDbContext context) : IProvinceRepository
 {
-    public async Task<IReadOnlyList<ProvinceOption>> ListActiveAsync(
+    public async Task<IReadOnlyList<ProvinceOptionRow>> ListActiveAsync(
         CancellationToken cancellationToken)
     {
         var provinces = await context.Provinces
@@ -22,7 +22,7 @@ public sealed class ProvinceRepository(ApplicationDbContext context) : IProvince
             .ToArrayAsync(cancellationToken);
 
         return provinces
-            .Select(province => new ProvinceOption(
+            .Select(province => new ProvinceOptionRow(
                 province.Code,
                 province.Name,
                 province.ActiveSchoolCount > 0,
@@ -40,7 +40,7 @@ public sealed class ProvinceRepository(ApplicationDbContext context) : IProvince
         .ToHashSet(StringComparer.Ordinal);
 
     public async Task SynchronizeAsync(
-        IReadOnlyList<ProvinceCatalogItem> provinces,
+        IReadOnlyList<ProvinceCatalogRecord> provinces,
         string source,
         DateTimeOffset synchronizedAt,
         CancellationToken cancellationToken)

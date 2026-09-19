@@ -1,7 +1,8 @@
 using Application.DTOs;
-using Application.Interfaces;
-using Application.Services.Implementations;
+using Application.Services.Implement;
 using Domain.Entities.Academic;
+using Infrastructure.Repositories.Interface;
+using Infrastructure.UnitOfWork;
 using Xunit;
 
 namespace Application.Tests;
@@ -312,8 +313,12 @@ public sealed class AcademicYearServiceTests
     private static CreateAcademicYearRequest ValidRequest() =>
         new("01", "2026-2027", new DateOnly(2026, 8, 15), new DateOnly(2027, 5, 31));
 
-    private sealed class FakeAcademicYearRepository : IAcademicYearRepository
+    private sealed class FakeAcademicYearRepository : IAcademicYearRepository, IUnitOfWork
     {
+        public IAcademicYearRepository AcademicYears => this;
+        public IProvinceRepository Provinces =>
+            throw new InvalidOperationException("Province repository is not used by these tests.");
+
         public AcademicYearCreateOutcome CreateOutcome { get; init; } =
             AcademicYearCreateOutcome.Created;
         public int CreateCallCount { get; private set; }
@@ -334,7 +339,7 @@ public sealed class AcademicYearServiceTests
         }
 
         public Task<(IReadOnlyList<AcademicYear> Items, int TotalCount)> ListAsync(
-            AcademicYearListQuery query,
+            AcademicYearListFilter filter,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<AcademicYear>, int)>(([], 0));
 
@@ -363,7 +368,16 @@ public sealed class AcademicYearServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult(true);
 
-        public Task CommitAsync(CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public Task<int> CompleteAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(1);
+
+        public Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken cancellationToken = default) =>
+            operation(cancellationToken);
+
+        public void Dispose()
+        {
+        }
     }
 }
