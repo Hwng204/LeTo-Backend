@@ -28,28 +28,6 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    if (builder.Environment.IsDevelopment())
-    {
-        // Dev identity headers (see MatrixIdentityExtensions): pick a role without logging in.
-        var devRequirement = new OpenApiSecurityRequirement();
-        foreach (var header in new[] { "X-Dev-UserId", "X-Dev-Role", "X-Dev-BranchId" })
-        {
-            options.AddSecurityDefinition(header, new OpenApiSecurityScheme
-            {
-                Name = header,
-                Type = SecuritySchemeType.ApiKey,
-                In = ParameterLocation.Header,
-                Description = "Development only: overrides the Dev:* identity."
-            });
-            devRequirement[new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = header }
-            }] = Array.Empty<string>();
-        }
-
-        options.AddSecurityRequirement(devRequirement);
-    }
-
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -73,7 +51,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddMatrixIdentity(builder.Configuration, builder.Environment);
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddMatrixIdentity();
 builder.Services.AddProblemDetails();
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy

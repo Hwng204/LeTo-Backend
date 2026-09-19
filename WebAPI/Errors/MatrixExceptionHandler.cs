@@ -34,7 +34,11 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
     {
         if (exception is UnauthorizedAccessException)
         {
-            return new ErrorResult(401, "Chưa xác thực", "Cần đăng nhập để thực hiện thao tác này.", "Unauthorized");
+            return new ErrorResult(
+                401,
+                "Chưa xác thực",
+                string.IsNullOrWhiteSpace(exception.Message) ? "Cần đăng nhập để thực hiện thao tác này." : exception.Message,
+                "Unauthorized");
         }
 
         if (exception is MatrixApplicationException applicationException)
