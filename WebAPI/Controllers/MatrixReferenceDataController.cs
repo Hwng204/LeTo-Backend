@@ -1,6 +1,5 @@
-using Application.Common.Security;
 using Application.DTOs;
-using Application.Interfaces;
+using Application.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,14 +9,13 @@ namespace WebAPI.Controllers;
 [Authorize]
 [Route("api/matrix-reference-data")]
 public sealed class MatrixReferenceDataController(
-    IMatrixCurrentUser currentUser,
-    IMatrixTaskReferenceReader reader) : ControllerBase
+    IMatrixTaskApplicationService service) : ControllerBase
 {
     [HttpGet]
     public Task<MatrixReferenceData> Get(
         [FromQuery] ulong? academicContextId = null,
         CancellationToken cancellationToken = default)
     {
-        return reader.GetAsync(currentUser.Actor, academicContextId, cancellationToken);
+        return service.GetReferenceDataAsync(academicContextId, cancellationToken);
     }
 }

@@ -37,9 +37,4 @@ public sealed record MatrixResponse(
 }
 
 
-public sealed record MatrixExportInfo(
-    string ContextLabel,
-    string? SemesterName,
-    IReadOnlyDictionary<ulong, string> LessonTitles);
-
 public sealed record MatrixExportFile(string FileName, byte[] Content);

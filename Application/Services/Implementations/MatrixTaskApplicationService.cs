@@ -1,17 +1,15 @@
 using Application.Common;
 using Application.Common.Security;
 using Application.DTOs;
-using Application.Interfaces;
 using Application.Mappings;
 using Application.Services.Interface;
 using Domain.Entities.QuestionBank;
+using Infrastructure.UnitOfWork;
 
 namespace Application.Services.Implement;
 
 public sealed class MatrixTaskApplicationService(
-    IMatrixTaskRepository repository,
-    IMatrixTaskReferenceReader referenceReader,
-    IMatrixTransaction transaction,
+    IUnitOfWork uow,
     IMatrixCurrentUser currentUser) : IMatrixTaskApplicationService
 {
     public async Task<MatrixTaskResponse> CreateAsync(
@@ -35,14 +33,14 @@ public sealed class MatrixTaskApplicationService(
                 "Chỉ PHT mới được giao nhiệm vụ ma trận.");
         }
 
-        await referenceReader.EnsureAssignmentValidAsync(
+        await uow.MatrixReferences.EnsureAssignmentValidAsync(
             actor,
             request.AssignedToUserId,
             request.AcademicContextId,
             request.SemesterId,
             cancellationToken);
 
-        return await transaction.ExecuteAsync(async ct =>
+        return await uow.ExecuteInTransactionAsync(async ct =>
         {
             var task = new WorkTask
             {
@@ -59,13 +57,13 @@ public sealed class MatrixTaskApplicationService(
                 CreatedAt = DateTime.UtcNow
             };
 
-            await repository.AddAsync(task, ct);
-            await repository.SaveChangesAsync(ct);
+            await uow.MatrixTasks.AddAsync(task, ct);
+            await uow.CompleteAsync(ct);
             return task.ToResponse(null);
         }, cancellationToken);
     }
 
-    public Task<MatrixTaskPage> ListAsync(
+    public async Task<MatrixTaskPage> ListAsync(
         MatrixTaskQuery query,
         CancellationToken cancellationToken)
     {
@@ -74,13 +72,17 @@ public sealed class MatrixTaskApplicationService(
             ? actor.UserId
             : query.AssignedToUserId;
 
-        return repository.ListAsync(
-            query with { BranchId = BranchScope(actor) },
-            assignedToUserId,
-            cancellationToken);
+        var filter = (query with
+        {
+            AssignedToUserId = assignedToUserId,
+            BranchId = BranchScope(actor)
+        }).ToFilter();
+
+        var page = await uow.MatrixTasks.ListAsync(filter, cancellationToken);
+        return page.ToDto();
     }
 
-    public Task<MatrixTaskPage> ListMineAsync(
+    public async Task<MatrixTaskPage> ListMineAsync(
         MatrixTaskQuery query,
         CancellationToken cancellationToken)
     {
@@ -92,7 +94,21 @@ public sealed class MatrixTaskApplicationService(
                 "Chỉ Tổ trưởng mới xem được nhiệm vụ ma trận được giao cho mình.");
         }
 
-        return repository.ListAsync(query, actor.UserId, cancellationToken);
+        var page = await uow.MatrixTasks.ListAsync(
+            (query with { AssignedToUserId = actor.UserId }).ToFilter(),
+            cancellationToken);
+        return page.ToDto();
+    }
+
+    public async Task<MatrixReferenceData> GetReferenceDataAsync(
+        ulong? academicContextId,
+        CancellationToken cancellationToken)
+    {
+        var model = await uow.MatrixReferences.GetReferenceDataAsync(
+            currentUser.Actor,
+            academicContextId,
+            cancellationToken);
+        return model.ToDto();
     }
 
     public async Task<MatrixTaskResponse> GetAsync(
@@ -100,7 +116,7 @@ public sealed class MatrixTaskApplicationService(
         CancellationToken cancellationToken)
     {
         var actor = currentUser.Actor;
-        var task = await repository.GetAsync(taskId, cancellationToken);
+        var task = await uow.MatrixTasks.GetMatrixTaskAsync(taskId, cancellationToken);
         if (task is null || !string.Equals(task.TaskType, "MATRIX", StringComparison.OrdinalIgnoreCase))
         {
             throw new MatrixApplicationException("NotFound", "Không tìm thấy nhiệm vụ ma trận.");
@@ -116,14 +132,14 @@ public sealed class MatrixTaskApplicationService(
         var branchScope = BranchScope(actor);
         if (branchScope is not null &&
             (task.AcademicContextId is null ||
-             await repository.GetContextBranchIdAsync(task.AcademicContextId.Value, cancellationToken) != branchScope))
+             await uow.MatrixTasks.GetContextBranchIdAsync(task.AcademicContextId.Value, cancellationToken) != branchScope))
         {
             throw new MatrixApplicationException(
                 "Forbidden",
                 "Nhiệm vụ ma trận thuộc chi nhánh khác.");
         }
 
-        var matrixId = await repository.GetLinkedMatrixIdAsync(taskId, cancellationToken);
+        var matrixId = await uow.MatrixTasks.GetLinkedMatrixIdAsync(taskId, cancellationToken);
         return task.ToResponse(matrixId);
     }
 

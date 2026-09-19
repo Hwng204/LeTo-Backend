@@ -1,11 +1,9 @@
-using Application.Common.Security;
-using Application.Interfaces;
-using Application.Services.Implement;
-using Application.Services.Interface;
 using Infrastructure.Context;
 using Infrastructure.Exports;
 using Infrastructure.Repositories.Implement;
+using Infrastructure.Repositories.Interface;
 using Infrastructure.Security;
+using Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,13 +31,9 @@ public static class DependencyInjection
                     typeof(ApplicationDbContext).Assembly.GetName().Name)));
 
         services.AddScoped<IMatrixRepository, ExamMatrixRepository>();
-        services.AddScoped<IMatrixTaskReader, MatrixTaskReader>();
-        services.AddScoped<IMatrixReferenceReader, MatrixReferenceReader>();
-        services.AddScoped<IMatrixTransaction, MatrixTransaction>();
-        services.AddScoped<IMatrixApplicationService, MatrixApplicationService>();
-        services.AddScoped<IMatrixTaskApplicationService, MatrixTaskApplicationService>();
         services.AddScoped<IMatrixTaskRepository, MatrixTaskRepository>();
-        services.AddScoped<IMatrixTaskReferenceReader, MatrixTaskReferenceReader>();
+        services.AddScoped<IMatrixReferenceRepository, MatrixReferenceRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
         services.AddSingleton<IMatrixRoleCatalog, ConfiguredMatrixRoleCatalog>();
         services.AddSingleton<IMatrixWorkbookExporter, ClosedXmlMatrixWorkbookExporter>();
 

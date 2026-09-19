@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Application.Common;
 using Application.Common.Security;
 using Domain.Entities.QuestionBank;
+using Infrastructure.Security;
 
 namespace WebAPI.Security;
 

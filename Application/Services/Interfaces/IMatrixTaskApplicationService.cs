@@ -20,4 +20,8 @@ public interface IMatrixTaskApplicationService
     Task<MatrixTaskResponse> GetAsync(
         ulong taskId,
         CancellationToken cancellationToken);
+
+    Task<MatrixReferenceData> GetReferenceDataAsync(
+        ulong? academicContextId,
+        CancellationToken cancellationToken);
 }

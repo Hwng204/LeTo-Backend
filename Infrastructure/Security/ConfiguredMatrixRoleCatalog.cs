@@ -1,4 +1,3 @@
-using Application.Common.Security;
 using Microsoft.Extensions.Configuration;
 
 namespace Infrastructure.Security;

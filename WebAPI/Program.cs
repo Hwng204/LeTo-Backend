@@ -1,3 +1,4 @@
+using Application;
 using Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
@@ -70,6 +71,7 @@ builder.Services.AddSwaggerGen(options =>
         }] = Array.Empty<string>()
     });
 });
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMatrixIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddProblemDetails();

@@ -1,24 +1,23 @@
-using Application.Common;
-using Application.DTOs;
-using Application.Interfaces;
 using Domain.Entities.QuestionBank;
 using Infrastructure.Context;
+using Infrastructure.Models;
+using Infrastructure.Repositories.Interface;
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
 
 namespace Infrastructure.Repositories.Implement;
 
-public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepository
+public sealed class ExamMatrixRepository(ApplicationDbContext db)
+    : GenericRepository<ExamMatrix>(db), IMatrixRepository
 {
     private const int MaxPageSize = 100;
 
-    public async Task<MatrixPage> ListAsync(
-        MatrixListQuery query,
+    public async Task<PagedResult<MatrixListRow>> ListAsync(
+        MatrixListFilter query,
         CancellationToken cancellationToken)
     {
         ValidatePage(query);
 
-        var matrices = db.ExamMatrices.AsNoTracking();
+        var matrices = Db.ExamMatrices.AsNoTracking();
 
         if (string.IsNullOrWhiteSpace(query.Status))
         {
@@ -89,7 +88,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
             })
             .ToListAsync(cancellationToken);
 
-        var items = rows.Select(row => new MatrixListItem(
+        var items = rows.Select(row => new MatrixListRow(
             row.Id,
             row.Name,
             row.Status,
@@ -99,14 +98,14 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
             checked((uint)row.TotalQuestions),
             row.TotalScore)).ToArray();
 
-        return new MatrixPage(items, query.Page, query.PageSize, totalCount);
+        return new PagedResult<MatrixListRow>(items, query.Page, query.PageSize, totalCount);
     }
 
     public async Task<ExamMatrix?> GetAsync(
         ulong id,
         CancellationToken cancellationToken)
     {
-        var matrix = await db.ExamMatrices
+        var matrix = await Db.ExamMatrices
             .Include(item => item.Task)
             .Include(item => item.AcademicContext)
             .Include(item => item.Details)
@@ -131,30 +130,23 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
         ulong taskId,
         CancellationToken cancellationToken)
     {
-        return db.ExamMatrices.AnyAsync(
+        return Db.ExamMatrices.AnyAsync(
             matrix => matrix.TaskId == taskId,
             cancellationToken);
     }
 
-    public async Task AddAsync(
+    // The task was loaded without tracking; attach it so EF does not try to insert it again.
+    public override async Task AddAsync(
         ExamMatrix matrix,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         if (matrix.Task is not null &&
-            db.Entry(matrix.Task).State == EntityState.Detached)
+            Db.Entry(matrix.Task).State == EntityState.Detached)
         {
-            db.Attach(matrix.Task);
+            Db.Attach(matrix.Task);
         }
 
-        await db.ExamMatrices.AddAsync(matrix, cancellationToken);
-    }
-
-    public Task RemoveAsync(
-        ExamMatrix matrix,
-        CancellationToken cancellationToken)
-    {
-        db.ExamMatrices.Remove(matrix);
-        return Task.CompletedTask;
+        await Db.ExamMatrices.AddAsync(matrix, cancellationToken);
     }
 
     public async Task<bool> TryUpdateStatusAsync(
@@ -162,7 +154,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
         string expectedStatus,
         CancellationToken cancellationToken)
     {
-        var affected = await db.ExamMatrices
+        var affected = await Db.ExamMatrices
             .Where(item => item.Id == matrix.Id && item.Status == expectedStatus)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(item => item.Status, matrix.Status),
@@ -173,7 +165,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
             return false;
         }
 
-        var status = db.Entry(matrix).Property(item => item.Status);
+        var status = Db.Entry(matrix).Property(item => item.Status);
         status.OriginalValue = matrix.Status;
         status.IsModified = false;
         return true;
@@ -185,7 +177,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
         string expectedStatus,
         CancellationToken cancellationToken)
     {
-        var rows = await db.Database
+        var rows = await Db.Database
             .SqlQuery<ulong>($"SELECT id AS Value FROM exam_matrices WHERE id = {matrixId} AND status = {expectedStatus} FOR UPDATE")
             .ToListAsync(cancellationToken);
         return rows.Count == 1;
@@ -198,7 +190,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
         CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        await db.WorkTasks
+        await Db.WorkTasks
             .Where(task => task.Id == taskId)
             .ExecuteUpdateAsync(
                 setters => setters
@@ -208,21 +200,7 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
                 cancellationToken);
     }
 
-    public async Task SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (IsDuplicateMatrixConstraint(exception))
-        {
-            throw new MatrixApplicationException(
-                GetDuplicateCode(exception),
-                "Ma trận xung đột với dữ liệu đã có (nhiệm vụ đã có ma trận hoặc dòng chi tiết bị trùng).");
-        }
-    }
-
-    private static void ValidatePage(MatrixListQuery query)
+    private static void ValidatePage(MatrixListFilter query)
     {
         if (query.Page < 1)
         {
@@ -233,22 +211,5 @@ public sealed class ExamMatrixRepository(ApplicationDbContext db) : IMatrixRepos
         {
             throw new ArgumentOutOfRangeException(nameof(query.PageSize));
         }
-    }
-
-    private static bool IsDuplicateMatrixConstraint(DbUpdateException exception)
-    {
-        var baseException = exception.GetBaseException();
-        return baseException is MySqlException mysqlException &&
-            mysqlException.Number == 1062;
-    }
-
-    private static string GetDuplicateCode(DbUpdateException exception)
-    {
-        var message = exception.GetBaseException().Message;
-        return message.Contains("uq_exam_matrices_task", StringComparison.OrdinalIgnoreCase)
-            ? "TaskAlreadyHasMatrix"
-            : message.Contains("uq_matrix_details_cell", StringComparison.OrdinalIgnoreCase)
-                ? "DuplicateDetail"
-                : "PersistenceConflict";
     }
 }

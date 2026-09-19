@@ -1,4 +1,4 @@
-namespace Application.Common.Security;
+namespace Infrastructure.Security;
 
 public interface IMatrixRoleCatalog
 {

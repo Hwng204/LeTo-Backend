@@ -1,35 +1,35 @@
-using Application.DTOs;
-using Application.Interfaces;
 using Domain.Entities.QuestionBank;
 using Infrastructure.Context;
+using Infrastructure.Models;
+using Infrastructure.Repositories.Interface;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories.Implement;
 
-public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskRepository
+public sealed class MatrixTaskRepository(ApplicationDbContext db)
+    : GenericRepository<WorkTask>(db), IMatrixTaskRepository
 {
     private const int MaxPageSize = 100;
 
-    public async Task<MatrixTaskPage> ListAsync(
-        MatrixTaskQuery query,
-        ulong? assignedToUserId,
+    public async Task<PagedResult<MatrixTaskRow>> ListAsync(
+        MatrixTaskFilter query,
         CancellationToken cancellationToken)
     {
         ValidatePage(query);
 
-        var tasks = db.WorkTasks
+        var tasks = Db.WorkTasks
             .AsNoTracking()
             .Where(task => task.TaskType == "MATRIX");
 
-        if (assignedToUserId is not null)
+        if (query.AssignedToUserId is not null)
         {
-            tasks = tasks.Where(task => task.AssignedToUserId == assignedToUserId.Value);
+            tasks = tasks.Where(task => task.AssignedToUserId == query.AssignedToUserId.Value);
         }
 
         if (query.BranchId is not null)
         {
             var branchId = query.BranchId.Value;
-            tasks = tasks.Where(task => db.AcademicContexts.Any(context =>
+            tasks = tasks.Where(task => Db.AcademicContexts.Any(context =>
                 context.Id == task.AcademicContextId &&
                 context.SchoolBranchId == branchId));
         }
@@ -37,11 +37,6 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
         if (!string.IsNullOrWhiteSpace(query.Status))
         {
             tasks = tasks.Where(task => task.Status == query.Status.Trim().ToUpperInvariant());
-        }
-
-        if (query.AssignedToUserId is not null && assignedToUserId is null)
-        {
-            tasks = tasks.Where(task => task.AssignedToUserId == query.AssignedToUserId.Value);
         }
 
         if (query.DueBefore is not null)
@@ -65,7 +60,7 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
                 task.Description,
                 task.AcademicContextId,
                 task.SemesterId,
-                MatrixId = db.ExamMatrices
+                MatrixId = Db.ExamMatrices
                     .Where(matrix => matrix.TaskId == task.Id)
                     .Select(matrix => (ulong?)matrix.Id)
                     .FirstOrDefault()
@@ -73,7 +68,7 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
             .ToListAsync(cancellationToken);
 
         var items = rows
-            .Select(task => new MatrixTaskListItem(
+            .Select(task => new MatrixTaskRow(
                 task.Id,
                 task.CreatedByUserId,
                 task.AssignedToUserId,
@@ -86,14 +81,23 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
                 task.MatrixId))
             .ToArray();
 
-        return new MatrixTaskPage(items, query.Page, query.PageSize, totalCount);
+        return new PagedResult<MatrixTaskRow>(items, query.Page, query.PageSize, totalCount);
     }
 
     public Task<WorkTask?> GetAsync(
         ulong taskId,
         CancellationToken cancellationToken)
     {
-        return db.WorkTasks
+        return Db.WorkTasks
+            .AsNoTracking()
+            .SingleOrDefaultAsync(task => task.Id == taskId, cancellationToken);
+    }
+
+    public Task<WorkTask?> GetMatrixTaskAsync(
+        ulong taskId,
+        CancellationToken cancellationToken)
+    {
+        return Db.WorkTasks
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 task => task.Id == taskId && task.TaskType == "MATRIX",
@@ -104,7 +108,7 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
         ulong taskId,
         CancellationToken cancellationToken)
     {
-        return db.ExamMatrices
+        return Db.ExamMatrices
             .AsNoTracking()
             .Where(matrix => matrix.TaskId == taskId)
             .Select(matrix => (ulong?)matrix.Id)
@@ -115,24 +119,14 @@ public sealed class MatrixTaskRepository(ApplicationDbContext db) : IMatrixTaskR
         ulong academicContextId,
         CancellationToken cancellationToken)
     {
-        return db.AcademicContexts
+        return Db.AcademicContexts
             .AsNoTracking()
             .Where(context => context.Id == academicContextId)
             .Select(context => (ulong?)context.SchoolBranchId)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task AddAsync(WorkTask task, CancellationToken cancellationToken)
-    {
-        await db.WorkTasks.AddAsync(task, cancellationToken);
-    }
-
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
-    {
-        return db.SaveChangesAsync(cancellationToken);
-    }
-
-    private static void ValidatePage(MatrixTaskQuery query)
+    private static void ValidatePage(MatrixTaskFilter query)
     {
         if (query.Page < 1)
         {

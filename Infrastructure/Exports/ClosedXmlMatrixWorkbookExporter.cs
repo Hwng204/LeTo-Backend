@@ -1,5 +1,3 @@
-using Application.DTOs;
-using Application.Interfaces;
 using ClosedXML.Excel;
 using Domain.Entities.QuestionBank;
 
@@ -7,7 +5,7 @@ namespace Infrastructure.Exports;
 
 public sealed class ClosedXmlMatrixWorkbookExporter : IMatrixWorkbookExporter
 {
-    public byte[] Create(MatrixResponse matrix, MatrixExportInfo? info = null)
+    public byte[] Create(MatrixWorkbookModel matrix)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Matrix");
@@ -20,9 +18,9 @@ public sealed class ClosedXmlMatrixWorkbookExporter : IMatrixWorkbookExporter
         sheet.Cell("A4").Value = "Mã nhiệm vụ";
         sheet.Cell("B4").Value = matrix.TaskId?.ToString() ?? string.Empty;
         sheet.Cell("A5").Value = "Ngữ cảnh học thuật";
-        sheet.Cell("B5").Value = SafeText(info?.ContextLabel ?? matrix.AcademicContextId.ToString());
+        sheet.Cell("B5").Value = SafeText(matrix.ContextLabel);
         sheet.Cell("A6").Value = "Học kỳ";
-        sheet.Cell("B6").Value = SafeText(info?.SemesterName ?? matrix.SemesterId?.ToString() ?? string.Empty);
+        sheet.Cell("B6").Value = SafeText(matrix.SemesterName);
         sheet.Cell("A7").Value = "Tổng số câu";
         sheet.Cell("B7").Value = matrix.TotalQuestions;
         sheet.Cell("A8").Value = "Tổng điểm";
@@ -43,14 +41,11 @@ public sealed class ClosedXmlMatrixWorkbookExporter : IMatrixWorkbookExporter
             sheet.Cell(headerRow, column + 1).Value = headers[column];
         }
 
-        for (var index = 0; index < matrix.Details.Count; index++)
+        for (var index = 0; index < matrix.Rows.Count; index++)
         {
-            var detail = matrix.Details[index];
+            var detail = matrix.Rows[index];
             var row = headerRow + index + 1;
-            sheet.Cell(row, 1).Value = SafeText(
-                info is not null && info.LessonTitles.TryGetValue(detail.LessonId, out var title)
-                    ? title
-                    : detail.LessonId.ToString());
+            sheet.Cell(row, 1).Value = SafeText(detail.LessonTitle);
             var level = MatrixCognitiveLevels.All
                 .Where(item => item.Code == detail.CognitiveLevel)
                 .Select(item => item.Label)

@@ -39,38 +39,13 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
 
         if (exception is MatrixApplicationException applicationException)
         {
-            var statusCode = applicationException.Code switch
-            {
-                "Forbidden" => 403,
-                "NotFound" or "TaskNotFound" => 404,
-                "ConcurrencyConflict" or
-                    "TaskAlreadyHasMatrix" or
-                    "PersistenceConflict" or
-                    "InvalidTransition" or
-                    "DirectMatrixRequired" or
-                    "MatrixNotEditable" => 409,
-                "InvalidRequest" or
-                    "EmptyMatrix" or
-                    "InvalidDetail" or
-                    "DuplicateDetail" or
-                    "InvalidReference" or
-                    "InvalidAssignee" or
-                    "InvalidTaskType" or
-                    "TaskScopeRequired" or
-                    "TaskImmutable" => 422,
-                _ => 400
-            };
-
-            return new ErrorResult(
-                statusCode,
-                statusCode == 409 ? "Xung đột dữ liệu" : "Yêu cầu ma trận không hợp lệ",
-                applicationException.Message,
-                applicationException.Code);
+            return FromCode(applicationException.Code, applicationException.Message, 400);
         }
 
+        // Domain rules and the repositories (persistence constraints, reference checks) use the same codes.
         if (exception is MatrixDomainException domainException)
         {
-            return new ErrorResult(422, "Dữ liệu ma trận không hợp lệ", domainException.Message, domainException.Code);
+            return FromCode(domainException.Code, domainException.Message, 422);
         }
 
         if (exception is ArgumentException or JsonException)
@@ -83,6 +58,37 @@ public sealed class MatrixExceptionHandler : IExceptionHandler
             "Lỗi hệ thống",
             "Đã xảy ra lỗi không mong muốn.",
             "InternalServerError");
+    }
+
+    private static ErrorResult FromCode(string code, string message, int defaultStatus)
+    {
+        var statusCode = code switch
+        {
+            "Forbidden" => 403,
+            "NotFound" or "TaskNotFound" => 404,
+            "ConcurrencyConflict" or
+                "TaskAlreadyHasMatrix" or
+                "PersistenceConflict" or
+                "InvalidTransition" or
+                "DirectMatrixRequired" or
+                "MatrixNotEditable" => 409,
+            "InvalidRequest" or
+                "EmptyMatrix" or
+                "InvalidDetail" or
+                "DuplicateDetail" or
+                "InvalidReference" or
+                "InvalidAssignee" or
+                "InvalidTaskType" or
+                "TaskScopeRequired" or
+                "TaskImmutable" => 422,
+            _ => defaultStatus
+        };
+
+        return new ErrorResult(
+            statusCode,
+            statusCode == 409 ? "Xung đột dữ liệu" : "Yêu cầu ma trận không hợp lệ",
+            message,
+            code);
     }
 
     private sealed record ErrorResult(

@@ -1,22 +1,20 @@
 using Application.Common;
 using Application.Common.Security;
 using Application.DTOs;
-using Application.Interfaces;
 using Application.Mappings;
 using Application.Services.Interface;
 using Domain.Entities.QuestionBank;
+using Infrastructure.Exports;
+using Infrastructure.UnitOfWork;
 
 namespace Application.Services.Implement;
 
 public sealed class MatrixApplicationService(
-    IMatrixRepository repository,
-    IMatrixTaskReader taskReader,
-    IMatrixReferenceReader referenceReader,
-    IMatrixTransaction transaction,
+    IUnitOfWork uow,
     IMatrixCurrentUser currentUser,
     IMatrixWorkbookExporter exporter) : IMatrixApplicationService
 {
-    public Task<MatrixPage> ListAsync(
+    public async Task<MatrixPage> ListAsync(
         MatrixListQuery query,
         CancellationToken cancellationToken)
     {
@@ -25,7 +23,8 @@ public sealed class MatrixApplicationService(
             ? query with { AssignedToUserId = actor.UserId }
             : query with { BranchId = BranchScope(actor) };
 
-        return repository.ListAsync(scopedQuery, cancellationToken);
+        var page = await uow.Matrices.ListAsync(scopedQuery.ToFilter(), cancellationToken);
+        return page.ToDto();
     }
 
     public async Task<MatrixResponse> CreateAsync(
@@ -35,11 +34,11 @@ public sealed class MatrixApplicationService(
         ValidateRequest(request);
         var actor = currentUser.Actor;
 
-        return await transaction.ExecuteAsync(async ct =>
+        return await uow.ExecuteInTransactionAsync(async ct =>
         {
             var matrix = await BuildNewMatrixAsync(request, actor, ct);
-            await repository.AddAsync(matrix, ct);
-            await repository.SaveChangesAsync(ct);
+            await uow.Matrices.AddAsync(matrix, ct);
+            await uow.CompleteAsync(ct);
             return matrix.ToResponse(actor);
         }, cancellationToken);
     }
@@ -62,7 +61,7 @@ public sealed class MatrixApplicationService(
         ValidateRequest(request);
         var actor = currentUser.Actor;
 
-        return await transaction.ExecuteAsync(async ct =>
+        return await uow.ExecuteInTransactionAsync(async ct =>
         {
             var matrix = await GetRequiredAsync(matrixId, actor, ct);
             if (request.TaskId != matrix.TaskId)
@@ -77,7 +76,7 @@ public sealed class MatrixApplicationService(
 
             if (matrix.TaskId is not null)
             {
-                var task = await taskReader.GetAsync(matrix.TaskId.Value, ct);
+                var task = await uow.MatrixTasks.GetAsync(matrix.TaskId.Value, ct);
                 if (task is null)
                 {
                     throw new MatrixApplicationException(
@@ -95,10 +94,10 @@ public sealed class MatrixApplicationService(
                 semesterId = request.SemesterId;
             }
 
-            await referenceReader.EnsureValidAsync(
+            await uow.MatrixReferences.EnsureValidAsync(
                 academicContextId,
                 semesterId,
-                request.Details,
+                LessonIds(request.Details),
                 ct,
                 BranchScope(actor));
 
@@ -107,7 +106,7 @@ public sealed class MatrixApplicationService(
             matrix.AcademicContextId = academicContextId;
             matrix.SemesterId = semesterId;
             ReplaceDetails(matrix, request.Details, actor);
-            await repository.SaveChangesAsync(ct);
+            await uow.CompleteAsync(ct);
             return matrix.ToResponse(actor);
         }, cancellationToken);
     }
@@ -118,7 +117,7 @@ public sealed class MatrixApplicationService(
     {
         var actor = currentUser.Actor;
 
-        await transaction.ExecuteAsync(async ct =>
+        await uow.ExecuteInTransactionAsync(async ct =>
         {
             var matrix = await GetRequiredAsync(matrixId, actor, ct);
             if (matrix.Status != MatrixStatusCodes.Draft)
@@ -136,8 +135,8 @@ public sealed class MatrixApplicationService(
             }
 
             await EnsureUnchangedAsync(matrix, ct);
-            await repository.RemoveAsync(matrix, ct);
-            await repository.SaveChangesAsync(ct);
+            await uow.Matrices.DeleteAsync(matrix);
+            await uow.CompleteAsync(ct);
             return true;
         }, cancellationToken);
     }
@@ -203,12 +202,12 @@ public sealed class MatrixApplicationService(
     {
         var actor = currentUser.Actor;
 
-        return await transaction.ExecuteAsync(async ct =>
+        return await uow.ExecuteInTransactionAsync(async ct =>
         {
             var matrix = await GetRequiredAsync(matrixId, actor, ct);
             var clone = matrix.CloneAsDraft(actor);
-            await repository.AddAsync(clone, ct);
-            await repository.SaveChangesAsync(ct);
+            await uow.Matrices.AddAsync(clone, ct);
+            await uow.CompleteAsync(ct);
             return clone.ToResponse(actor);
         }, cancellationToken);
     }
@@ -221,7 +220,7 @@ public sealed class MatrixApplicationService(
     {
         var actor = currentUser.Actor;
 
-        return await transaction.ExecuteAsync(async ct =>
+        return await uow.ExecuteInTransactionAsync(async ct =>
         {
             var matrix = await GetRequiredAsync(matrixId, actor, ct);
             var expectedStatus = matrix.Status;
@@ -234,7 +233,7 @@ public sealed class MatrixApplicationService(
                 throw new MatrixApplicationException(exception.Code, exception.Message);
             }
 
-            if (!await repository.TryUpdateStatusAsync(matrix, expectedStatus, ct))
+            if (!await uow.Matrices.TryUpdateStatusAsync(matrix, expectedStatus, ct))
             {
                 throw new MatrixApplicationException(
                     "ConcurrencyConflict",
@@ -243,7 +242,7 @@ public sealed class MatrixApplicationService(
 
             if (taskStatusAfter is not null && matrix.TaskId is not null)
             {
-                await repository.SetTaskStatusAsync(
+                await uow.Matrices.SetTaskStatusAsync(
                     matrix.TaskId.Value,
                     taskStatusAfter,
                     actor.UserId,
@@ -266,7 +265,7 @@ public sealed class MatrixApplicationService(
                 "Chỉ xuất được ma trận đã duyệt hoặc đã lưu trữ.");
         }
 
-        var info = await referenceReader.GetExportInfoAsync(
+        var info = await uow.MatrixReferences.GetExportInfoAsync(
             matrix.AcademicContextId,
             matrix.SemesterId,
             matrix.Details.Select(detail => detail.LessonId).Distinct().ToArray(),
@@ -274,7 +273,12 @@ public sealed class MatrixApplicationService(
 
         return new MatrixExportFile(
             $"{SafeFileName(matrix.Name)}.xlsx",
-            exporter.Create(matrix, info));
+            exporter.Create(matrix.ToWorkbookModel(info)));
+    }
+
+    private static IReadOnlyCollection<ulong> LessonIds(IEnumerable<MatrixDetailRequest> details)
+    {
+        return details.Select(detail => detail.LessonId).ToArray();
     }
 
     private static string SafeFileName(string value)
@@ -304,7 +308,7 @@ public sealed class MatrixApplicationService(
 
     private async Task EnsureUnchangedAsync(ExamMatrix matrix, CancellationToken cancellationToken)
     {
-        if (!await repository.LockWithStatusAsync(matrix.Id, matrix.Status, cancellationToken))
+        if (!await uow.Matrices.LockWithStatusAsync(matrix.Id, matrix.Status, cancellationToken))
         {
             throw new MatrixApplicationException(
                 "ConcurrencyConflict",
@@ -326,10 +330,10 @@ public sealed class MatrixApplicationService(
                     "Chỉ PHT mới được tạo ma trận trực tiếp.");
             }
 
-            await referenceReader.EnsureValidAsync(
+            await uow.MatrixReferences.EnsureValidAsync(
                 request.AcademicContextId,
                 request.SemesterId,
-                request.Details,
+                LessonIds(request.Details),
                 cancellationToken,
                 BranchScope(actor));
 
@@ -346,7 +350,7 @@ public sealed class MatrixApplicationService(
             return directMatrix;
         }
 
-        var task = await taskReader.GetAsync(request.TaskId.Value, cancellationToken);
+        var task = await uow.MatrixTasks.GetAsync(request.TaskId.Value, cancellationToken);
         if (task is null)
         {
             throw new MatrixApplicationException(
@@ -363,7 +367,7 @@ public sealed class MatrixApplicationService(
                 "Nhiệm vụ được chọn không phải nhiệm vụ ma trận.");
         }
 
-        if (await repository.ExistsForTaskAsync(task.Id, cancellationToken))
+        if (await uow.Matrices.ExistsForTaskAsync(task.Id, cancellationToken))
         {
             throw new MatrixApplicationException(
                 "TaskAlreadyHasMatrix",
@@ -371,10 +375,10 @@ public sealed class MatrixApplicationService(
         }
 
         var taskContextId = RequireTaskContext(task);
-        await referenceReader.EnsureValidAsync(
+        await uow.MatrixReferences.EnsureValidAsync(
             taskContextId,
             task.SemesterId,
-            request.Details,
+            LessonIds(request.Details),
             cancellationToken,
             BranchScope(actor));
 
@@ -397,7 +401,7 @@ public sealed class MatrixApplicationService(
         MatrixActor actor,
         CancellationToken cancellationToken)
     {
-        var matrix = await repository.GetAsync(matrixId, cancellationToken);
+        var matrix = await uow.Matrices.GetAsync(matrixId, cancellationToken);
         if (matrix is null)
         {
             throw new MatrixApplicationException(

@@ -1,10 +1,68 @@
 using Application.DTOs;
 using Domain.Entities.QuestionBank;
+using Infrastructure.Exports;
+using Infrastructure.Models;
 
 namespace Application.Mappings;
 
 public static class MatrixMappingExtensions
 {
+    public static MatrixListFilter ToFilter(this MatrixListQuery query)
+    {
+        return new MatrixListFilter(
+            query.Page,
+            query.PageSize,
+            query.Keyword,
+            query.AcademicContextId,
+            query.SemesterId,
+            query.Status,
+            query.AssignedToUserId,
+            query.BranchId);
+    }
+
+    public static MatrixPage ToDto(this PagedResult<MatrixListRow> page)
+    {
+        var items = page.Items
+            .Select(row => new MatrixListItem(
+                row.Id,
+                row.Name,
+                row.Status,
+                row.TaskId,
+                row.AcademicContextId,
+                row.SemesterId,
+                row.TotalQuestions,
+                row.TotalScore))
+            .ToArray();
+
+        return new MatrixPage(items, page.Page, page.PageSize, page.TotalCount);
+    }
+
+    public static MatrixWorkbookModel ToWorkbookModel(
+        this MatrixResponse matrix,
+        MatrixExportInfo info)
+    {
+        var rows = matrix.Details
+            .Select(detail => new MatrixWorkbookRow(
+                info.LessonTitles.TryGetValue(detail.LessonId, out var title)
+                    ? title
+                    : detail.LessonId.ToString(),
+                detail.CognitiveLevel,
+                detail.QuestionType,
+                detail.QuestionCount,
+                detail.AllocatedScore))
+            .ToArray();
+
+        return new MatrixWorkbookModel(
+            matrix.Name,
+            matrix.Status,
+            matrix.TaskId,
+            info.ContextLabel,
+            info.SemesterName ?? matrix.SemesterId?.ToString() ?? string.Empty,
+            matrix.TotalQuestions,
+            matrix.TotalScore,
+            rows);
+    }
+
     public static IReadOnlyList<MatrixDetailValue> ToValues(
         this IReadOnlyCollection<MatrixDetailRequest> details)
     {
@@ -112,6 +170,50 @@ public static class MatrixMappingExtensions
 
 public static class MatrixTaskMappingExtensions
 {
+    public static MatrixTaskFilter ToFilter(this MatrixTaskQuery query)
+    {
+        return new MatrixTaskFilter(
+            query.Page,
+            query.PageSize,
+            query.Status,
+            query.AssignedToUserId,
+            query.DueBefore,
+            query.BranchId);
+    }
+
+    public static MatrixTaskPage ToDto(this PagedResult<MatrixTaskRow> page)
+    {
+        var items = page.Items
+            .Select(row => new MatrixTaskListItem(
+                row.Id,
+                row.CreatedByUserId,
+                row.AssignedToUserId,
+                row.DueAt,
+                row.Status,
+                row.TaskType,
+                row.Description,
+                row.AcademicContextId,
+                row.SemesterId,
+                row.MatrixId))
+            .ToArray();
+
+        return new MatrixTaskPage(items, page.Page, page.PageSize, page.TotalCount);
+    }
+
+    public static MatrixReferenceData ToDto(this MatrixReferenceModel model)
+    {
+        var cognitiveLevels = MatrixCognitiveLevels.All
+            .Select(level => new MatrixCognitiveLevelOption(level.Code, level.Label))
+            .ToArray();
+
+        return new MatrixReferenceData(
+            model.AcademicContexts,
+            model.Semesters,
+            model.Lessons,
+            model.TeamLeads,
+            cognitiveLevels);
+    }
+
     public static MatrixTaskResponse ToResponse(this WorkTask task, ulong? matrixId)
     {
         return new MatrixTaskResponse(
