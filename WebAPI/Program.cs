@@ -2,7 +2,6 @@ using Application;
 using Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
-using WebAPI.Errors;
 using WebAPI.ExceptionHandling;
 using WebAPI.Security;
 
